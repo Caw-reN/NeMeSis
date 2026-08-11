@@ -159,6 +159,33 @@ class MikrotikService
     }
 
     // =========================================================================
+    // Fase 4: Auto-Discovery — LLDP / Neighbor Protocol
+    // =========================================================================
+
+    /**
+     * Get IP neighbor discovery table (/ip/neighbor/print).
+     *
+     * RouterOS uses MNDP (Mikrotik Neighbor Discovery Protocol), which is
+     * compatible with LLDP. Returns raw neighbor rows from the API.
+     *
+     * Key fields in each row:
+     *   - address   (or address4): neighbor IP address
+     *   - identity   (or system-name): neighbor hostname
+     *   - interface:  local interface on which the neighbor was seen
+     *   - interface-name: remote interface name (if reported)
+     *
+     * @return array<int, array<string, string>>
+     */
+    public function getNeighbors(): array
+    {
+        try {
+            return $this->query(['/ip/neighbor/print']);
+        } catch (\RuntimeException) {
+            return [];
+        }
+    }
+
+    // =========================================================================
     // Low-level Protocol Implementation
     // =========================================================================
 

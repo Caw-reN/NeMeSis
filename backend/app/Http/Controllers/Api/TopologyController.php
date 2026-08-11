@@ -5,7 +5,9 @@ namespace App\Http\Controllers\Api;
 use App\Http\Controllers\Controller;
 use App\Http\Resources\TopologyResource;
 use App\Models\Device;
+use App\Models\DeviceLog;
 use App\Models\TopologyLink;
+use App\Services\TopologyDiscoveryService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 
@@ -102,5 +104,52 @@ class TopologyController extends Controller
         $link->update($data);
 
         return response()->json(['message' => 'Link diperbarui.', 'link' => $link->fresh()]);
+    }
+
+    // =========================================================================
+    // Fase 4: Auto-Discovery
+    // =========================================================================
+
+    /**
+     * POST /api/topology/discover
+     *
+     * Trigger CDP/LLDP neighbor discovery across all eligible devices.
+     * Optionally scoped to a single device via ?device_id=123 query param.
+     *
+     * Returns a discovery summary:
+     *  - scanned:         number of devices queried
+     *  - neighbors_found: total raw neighbors detected
+     *  - links_created:   new topology links added
+     *  - links_updated:   existing links refreshed
+     *  - errors:          devices that could not be contacted
+     *  - details:         per-neighbor breakdown
+     */
+    public function discover(Request $request, TopologyDiscoveryService $discoveryService): JsonResponse
+    {
+        $deviceId = $request->integer('device_id') ?: null;
+
+        try {
+            $summary = $discoveryService->run($deviceId);
+        } catch (\Throwable $e) {
+            return response()->json([
+                'error'   => 'Auto-discovery failed unexpectedly.',
+                'details' => $e->getMessage(),
+            ], 500);
+        }
+
+        // Log audit entry for the action
+        DeviceLog::system(
+            null,
+            'discovery',
+            "Auto-Discovery selesai: {$summary['scanned']} device dipindai, " .
+            "{$summary['links_created']} link baru, {$summary['links_updated']} link diperbarui, " .
+            "{$summary['errors']} error.",
+            $summary
+        );
+
+        return response()->json([
+            'message' => 'Auto-Discovery berhasil dijalankan.',
+            'summary' => $summary,
+        ]);
     }
 }

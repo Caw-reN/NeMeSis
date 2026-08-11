@@ -41,6 +41,7 @@ Route::middleware('auth:sanctum')->group(function () {
 
     // Topology
     Route::get('topology', [TopologyController::class, 'index']);
+    Route::post('topology/discover',          [TopologyController::class, 'discover']);
     Route::post('topology/links',             [TopologyController::class, 'storeLink']);
     Route::put('topology/links/{link}',       [TopologyController::class, 'updateLink']);
     Route::delete('topology/links/{link}',    [TopologyController::class, 'destroyLink']);

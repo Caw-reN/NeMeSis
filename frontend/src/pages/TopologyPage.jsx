@@ -1,6 +1,6 @@
 import { useEffect, useState, useCallback } from 'react'
 import { motion } from 'framer-motion'
-import { RefreshCw, Maximize2 } from 'lucide-react'
+import { RefreshCw, Maximize2, Radar } from 'lucide-react'
 import TopologyCanvas from '../components/topology/TopologyCanvas'
 import NodeInfoPanel  from '../components/topology/NodeInfoPanel'
 import { topologyService } from '../services/topology.service'
@@ -10,6 +10,7 @@ import { toast } from '../utils/toast'
 export default function TopologyPage() {
   const [graph, setGraph]           = useState({ nodes: [], edges: [] })
   const [loading, setLoading]       = useState(true)
+  const [isDiscovering, setIsDiscovering] = useState(false)
   const [selectedId, setSelectedId] = useState(null)
   const [selectedNode, setSelectedNode] = useState(null)
 
@@ -22,6 +23,24 @@ export default function TopologyPage() {
   }, [])
 
   useEffect(fetchGraph, [fetchGraph])
+
+  const handleDiscover = async () => {
+    setIsDiscovering(true)
+    const tid = toast.loading('Running Auto-Discovery (CDP/LLDP)...')
+    try {
+      const res = await topologyService.runDiscovery()
+      const summary = res.summary
+      toast.success(
+        `Discovery complete: found ${summary.neighbors_found} neighbors, created ${summary.links_created} new links.`,
+        { id: tid }
+      )
+      fetchGraph()
+    } catch (err) {
+      toast.error(err?.response?.data?.error ?? 'Auto-Discovery failed.', { id: tid })
+    } finally {
+      setIsDiscovering(false)
+    }
+  }
 
   // When a node is clicked, load full device detail
   const handleNodeClick = async (nodeId) => {
@@ -57,8 +76,16 @@ export default function TopologyPage() {
         </div>
         <div className="ml-auto flex items-center gap-2">
           <button
+            onClick={handleDiscover}
+            disabled={isDiscovering || loading}
+            className="flex items-center gap-2 text-sm text-indigo-600 font-semibold border border-indigo-200 bg-indigo-50 rounded-xl px-3 py-2 hover:bg-indigo-100 disabled:opacity-50 transition"
+          >
+            <Radar size={16} className={isDiscovering ? 'animate-spin' : ''} />
+            {isDiscovering ? 'Scanning...' : 'Run Auto-Discovery'}
+          </button>
+          <button
             onClick={fetchGraph}
-            disabled={loading}
+            disabled={loading || isDiscovering}
             className="flex items-center gap-2 text-sm text-slate-600 border border-slate-200 bg-white rounded-xl px-3 py-2 hover:bg-slate-50 disabled:opacity-50 transition"
           >
             <RefreshCw size={14} className={loading ? 'animate-spin' : ''} />

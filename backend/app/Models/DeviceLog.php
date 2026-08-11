@@ -43,7 +43,7 @@ class DeviceLog extends Model
     /**
      * Create a system-generated log (no user actor — from Go worker or scheduler).
      */
-    public static function system(int $deviceId, string $eventType, string $message, ?array $metadata = null): self
+    public static function system(?int $deviceId, string $eventType, string $message, ?array $metadata = null): self
     {
         return static::create([
             'device_id'  => $deviceId,

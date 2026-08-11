@@ -130,8 +130,207 @@ class CiscoSshService
     }
 
     // =========================================================================
-    // Raw Exec Helper
+    // Fase 4: Auto-Discovery — CDP & LLDP Neighbor Parsing
     // =========================================================================
+
+    /**
+     * Pull CDP (Cisco Discovery Protocol) neighbor details.
+     * Executes 'show cdp neighbors detail' and parses each neighbor block.
+     *
+     * @return array<int, array{ip: string, hostname: string, local_iface: string, remote_iface: string, protocol: string}>
+     */
+    public function getCdpNeighbors(): array
+    {
+        try {
+            $output = $this->exec('show cdp neighbors detail');
+        } catch (\Throwable) {
+            return []; // CDP might be disabled
+        }
+
+        // CDP is disabled globally if output contains 'not enabled' or '%CDP is not enabled'
+        if (str_contains($output, 'not enabled') || str_contains($output, 'not running')) {
+            return [];
+        }
+
+        return $this->parseCdpNeighborsDetail($output);
+    }
+
+    /**
+     * Pull LLDP neighbor details (fallback when CDP is disabled).
+     * Executes 'show lldp neighbors detail'.
+     *
+     * @return array<int, array{ip: string, hostname: string, local_iface: string, remote_iface: string, protocol: string}>
+     */
+    public function getLldpNeighbors(): array
+    {
+        try {
+            $output = $this->exec('show lldp neighbors detail');
+        } catch (\Throwable) {
+            return []; // LLDP might also be disabled
+        }
+
+        if (str_contains($output, 'not enabled') || str_contains($output, '% LLDP')) {
+            return [];
+        }
+
+        return $this->parseLldpNeighborsDetail($output);
+    }
+
+    /**
+     * Parse 'show cdp neighbors detail' output.
+     *
+     * CDP block example:
+     * -------------------------
+     * Device ID: SW-DIST-01
+     * Entry address(es):
+     *   IP address: 192.168.1.2
+     * Platform: cisco WS-C2960-24,  Capabilities: Switch IGMP
+     * Interface: GigabitEthernet0/1,  Port ID (outgoing port): GigabitEthernet1/0/1
+     *
+     * @return array<int, array{ip, hostname, local_iface, remote_iface, protocol}>
+     */
+    private function parseCdpNeighborsDetail(string $output): array
+    {
+        $neighbors = [];
+
+        // Split on the separator line between neighbor entries
+        $blocks = preg_split('/\n-{5,}\n/', $output);
+
+        foreach ($blocks as $block) {
+            $block = trim($block);
+            if (empty($block)) {
+                continue;
+            }
+
+            $neighbor = [
+                'ip'           => '',
+                'hostname'     => '',
+                'local_iface'  => '',
+                'remote_iface' => '',
+                'protocol'     => 'cdp',
+            ];
+
+            // Device hostname (Device ID line)
+            if (preg_match('/Device ID:\s*([^\n\r]+)/i', $block, $m)) {
+                // Strip domain suffix from hostname (e.g. "SW-DIST-01.company.local" → "SW-DIST-01")
+                $neighbor['hostname'] = trim(explode('.', trim($m[1]))[0]);
+            }
+
+            // Management / entry IP address — try multiple CDP IP formats
+            // Format 1: "  IP address: x.x.x.x"
+            // Format 2: "  IPv4 address: x.x.x.x"
+            if (preg_match('/(?:IP|IPv4)\s+address:\s*(\d{1,3}(?:\.\d{1,3}){3})/i', $block, $m)) {
+                $neighbor['ip'] = trim($m[1]);
+            }
+
+            // Local interface (our side): "Interface: GigabitEthernet0/1,"
+            if (preg_match('/^Interface:\s*([^,\n]+)/im', $block, $m)) {
+                $neighbor['local_iface'] = $this->normalizeInterface(trim($m[1]));
+            }
+
+            // Remote interface (their side): "Port ID (outgoing port): GigabitEthernet1/0/1"
+            if (preg_match('/Port ID \(outgoing port\):\s*([^\n\r]+)/i', $block, $m)) {
+                $neighbor['remote_iface'] = $this->normalizeInterface(trim($m[1]));
+            }
+
+            // Only include if we have at least a hostname or IP
+            if ($neighbor['hostname'] || $neighbor['ip']) {
+                $neighbors[] = $neighbor;
+            }
+        }
+
+        return $neighbors;
+    }
+
+    /**
+     * Parse 'show lldp neighbors detail' output.
+     *
+     * LLDP block example:
+     * ------------------------------------------------
+     * Local Intf: Gi0/1
+     * Chassis id: 00aa.bbcc.ddee
+     * Port id: Gi1/0/1
+     * Port Description: GigabitEthernet1/0/1
+     * System Name: SW-DIST-01
+     *
+     * Management Addresses:
+     *     IP: 192.168.1.2
+     *
+     * @return array<int, array{ip, hostname, local_iface, remote_iface, protocol}>
+     */
+    private function parseLldpNeighborsDetail(string $output): array
+    {
+        $neighbors = [];
+
+        // Split on separator lines
+        $blocks = preg_split('/\n-{5,}\n/', $output);
+
+        foreach ($blocks as $block) {
+            $block = trim($block);
+            if (empty($block)) {
+                continue;
+            }
+
+            $neighbor = [
+                'ip'           => '',
+                'hostname'     => '',
+                'local_iface'  => '',
+                'remote_iface' => '',
+                'protocol'     => 'lldp',
+            ];
+
+            // Local interface
+            if (preg_match('/Local\s+(?:Intf|Interface):\s*(\S+)/i', $block, $m)) {
+                $neighbor['local_iface'] = $this->normalizeInterface($m[1]);
+            }
+
+            // System name (hostname)
+            if (preg_match('/System\s+Name:\s*([^\n\r]+)/i', $block, $m)) {
+                $neighbor['hostname'] = trim(explode('.', trim($m[1]))[0]);
+            }
+
+            // Remote port (Port Description or Port id)
+            if (preg_match('/Port\s+Description:\s*([^\n\r]+)/i', $block, $m)) {
+                $neighbor['remote_iface'] = $this->normalizeInterface(trim($m[1]));
+            } elseif (preg_match('/Port\s+id:\s*(\S+)/i', $block, $m)) {
+                $neighbor['remote_iface'] = $this->normalizeInterface($m[1]);
+            }
+
+            // Management IP
+            if (preg_match('/(?:IP|IPv4):\s*(\d{1,3}(?:\.\d{1,3}){3})/i', $block, $m)) {
+                $neighbor['ip'] = trim($m[1]);
+            }
+
+            if ($neighbor['hostname'] || $neighbor['ip']) {
+                $neighbors[] = $neighbor;
+            }
+        }
+
+        return $neighbors;
+    }
+
+    /**
+     * Normalize interface names to short form.
+     * e.g. "GigabitEthernet0/1" → "Gi0/1", "FastEthernet0/1" → "Fa0/1"
+     */
+    private function normalizeInterface(string $iface): string
+    {
+        $map = [
+            '/GigabitEthernet/i'      => 'Gi',
+            '/FastEthernet/i'         => 'Fa',
+            '/TenGigabitEthernet/i'   => 'Te',
+            '/TwentyFiveGigE/i'       => 'Twe',
+            '/HundredGigE/i'          => 'Hu',
+            '/mgmt/i'                 => 'mgmt',
+        ];
+
+        foreach ($map as $pattern => $replacement) {
+            $iface = preg_replace($pattern, $replacement, $iface);
+        }
+
+        return trim($iface);
+    }
+
 
     private function exec(string $command): string
     {
