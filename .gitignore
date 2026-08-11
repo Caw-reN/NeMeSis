@@ -1,0 +1,44 @@
+# ========================
+# OS & Editor
+# ========================
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
+*.suo
+*.user
+
+# ========================
+# Backend (Laravel)
+# ========================
+/backend/.env
+/backend/vendor/
+/backend/node_modules/
+/backend/storage/framework/cache/data/*
+/backend/storage/framework/sessions/*
+/backend/storage/framework/views/*
+/backend/storage/logs/*.log
+/backend/bootstrap/cache/*.php
+/backend/public/hot
+/backend/public/storage
+
+# ========================
+# Frontend (React / Vite)
+# ========================
+/frontend/node_modules/
+/frontend/dist/
+/frontend/.env
+/frontend/.env.local
+
+# ========================
+# Worker (Go)
+# ========================
+/worker/bin/
+/worker/*.exe
+/worker/go.sum
+
+# ========================
+# Docker & Environment
+# ========================
+.env
+docker-compose.override.yml
