@@ -1,11 +1,12 @@
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
 import { AuthProvider, useAuth } from './context/AuthContext'
-import AppLayout     from './components/layout/AppLayout'
+import AppLayout      from './components/layout/AppLayout'
 import ToastContainer from './components/ui/Toast'
-import LoginPage     from './pages/LoginPage'
-import DashboardPage from './pages/DashboardPage'
-import DevicesPage   from './pages/DevicesPage'
-import TopologyPage  from './pages/TopologyPage'
+import LoginPage      from './pages/LoginPage'
+import DashboardPage  from './pages/DashboardPage'
+import DevicesPage    from './pages/DevicesPage'
+import DeviceDetailPage from './pages/DeviceDetailPage'
+import TopologyPage   from './pages/TopologyPage'
 
 /**
  * ProtectedRoute — redirects unauthenticated users to /login.
@@ -38,6 +39,7 @@ function AppRoutes() {
         <Route index element={<Navigate to="/dashboard" replace />} />
         <Route path="dashboard" element={<DashboardPage />} />
         <Route path="devices"   element={<DevicesPage />}   />
+        <Route path="devices/:id" element={<DeviceDetailPage />} />
         <Route path="topology"  element={<TopologyPage />}  />
       </Route>
 

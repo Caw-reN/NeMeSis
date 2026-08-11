@@ -27,10 +27,17 @@ class UpdateDeviceRequest extends FormRequest
             'location'        => ['nullable', 'string', 'max:150'],
             'description'     => ['nullable', 'string', 'max:500'],
             'is_active'       => ['boolean'],
-            'credentials'          => ['nullable', 'array'],
-            'credentials.password' => ['nullable', 'string'],
-            'credentials.api_token'=> ['nullable', 'string'],
-            'credentials.ssh_key'  => ['nullable', 'string'],
+            // Credential fields — same structure as StoreDeviceRequest
+            'credentials'                    => ['nullable', 'array'],
+            'credentials.mikrotik'           => ['nullable', 'array'],
+            'credentials.mikrotik.api_user'  => ['nullable', 'string', 'max:100'],
+            'credentials.mikrotik.api_pass'  => ['nullable', 'string', 'max:255'],
+            'credentials.mikrotik.api_port'  => ['nullable', 'integer', 'min:1', 'max:65535'],
+            'credentials.cisco'              => ['nullable', 'array'],
+            'credentials.cisco.ssh_user'     => ['nullable', 'string', 'max:100'],
+            'credentials.cisco.ssh_pass'     => ['nullable', 'string', 'max:255'],
+            'credentials.cisco.enable_pass'  => ['nullable', 'string', 'max:255'],
+            'credentials.cisco.ssh_port'     => ['nullable', 'integer', 'min:1', 'max:65535'],
         ];
     }
 }

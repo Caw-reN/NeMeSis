@@ -3,6 +3,7 @@
 use App\Http\Controllers\Api\AuthController;
 use App\Http\Controllers\Api\DashboardController;
 use App\Http\Controllers\Api\DeviceController;
+use App\Http\Controllers\Api\MetricsController;
 use App\Http\Controllers\Api\TopologyController;
 use Illuminate\Support\Facades\Route;
 
@@ -43,4 +44,8 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::post('topology/links',             [TopologyController::class, 'storeLink']);
     Route::put('topology/links/{link}',       [TopologyController::class, 'updateLink']);
     Route::delete('topology/links/{link}',    [TopologyController::class, 'destroyLink']);
+
+    // Metrics — Fase 3a (Read Mode)
+    Route::get('devices/{device}/metrics/mikrotik', [MetricsController::class, 'mikrotik']);
+    Route::get('devices/{device}/metrics/cisco',    [MetricsController::class, 'cisco']);
 });

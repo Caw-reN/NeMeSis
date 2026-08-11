@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { motion }    from 'framer-motion'
-import { Plus, Pencil, Trash2, RefreshCw } from 'lucide-react'
+import { Plus, Pencil, Trash2, RefreshCw, ExternalLink } from 'lucide-react'
+import { useNavigate } from 'react-router-dom'
 import DataTable     from '../components/ui/DataTable'
 import StatusBadge   from '../components/ui/StatusBadge'
 import DeviceTypeIcon from '../components/ui/DeviceTypeIcon'
@@ -13,9 +14,15 @@ const EMPTY_FORM = {
   name: '', ip_address: '', type: 'router', vendor: 'generic',
   snmp_enabled: false, snmp_community: '', snmp_version: 'v2c',
   location: '', description: '', is_active: true,
+  // Credentials sub-object (encrypted by backend before storage)
+  credentials: {
+    mikrotik: { api_user: '', api_pass: '', api_port: 8728 },
+    cisco:    { ssh_user: '', ssh_pass: '', enable_pass: '', ssh_port: 22 },
+  },
 }
 
 export default function DevicesPage() {
+  const navigate = useNavigate()
   const [devices, setDevices] = useState([])
   const [loading, setLoading] = useState(true)
   const [modalOpen, setModalOpen] = useState(false)
@@ -86,7 +93,13 @@ export default function DevicesPage() {
             <DeviceTypeIcon type={row.type} size={15} className="text-slate-600" />
           </div>
           <div>
-            <p className="font-semibold text-slate-900 text-sm">{row.name}</p>
+            <button
+              onClick={() => navigate(`/devices/${row.id}`)}
+              className="font-semibold text-slate-900 text-sm hover:text-indigo-600 transition flex items-center gap-1 group"
+            >
+              {row.name}
+              <ExternalLink size={11} className="opacity-0 group-hover:opacity-60 transition" />
+            </button>
             <p className="text-xs text-slate-400 font-mono">{row.ip_address}</p>
           </div>
         </div>
@@ -213,6 +226,79 @@ export default function DevicesPage() {
               placeholder="Optional notes..."
             />
           </Field>
+
+          {/* ── Credential Section (vendor-specific) ── */}
+          {(form.vendor === 'mikrotik' || form.vendor === 'cisco') && (
+            <div className="border border-amber-200 bg-amber-50 rounded-xl p-4 space-y-3">
+              <p className="text-xs font-bold text-amber-800 uppercase tracking-wider flex items-center gap-1.5">
+                🔐 Device Credentials <span className="font-normal text-amber-600">(encrypted at rest)</span>
+              </p>
+
+              {form.vendor === 'mikrotik' && (
+                <div className="grid grid-cols-2 gap-3">
+                  <Field label="API Username">
+                    <Input
+                      value={form.credentials?.mikrotik?.api_user ?? ''}
+                      onChange={v => setForm(f => ({ ...f, credentials: { ...f.credentials, mikrotik: { ...f.credentials?.mikrotik, api_user: v } } }))}
+                      placeholder="admin"
+                    />
+                  </Field>
+                  <Field label="API Password">
+                    <Input
+                      type="password"
+                      value={form.credentials?.mikrotik?.api_pass ?? ''}
+                      onChange={v => setForm(f => ({ ...f, credentials: { ...f.credentials, mikrotik: { ...f.credentials?.mikrotik, api_pass: v } } }))}
+                      placeholder="••••••••"
+                    />
+                  </Field>
+                  <Field label="API Port">
+                    <Input
+                      type="number"
+                      value={form.credentials?.mikrotik?.api_port ?? 8728}
+                      onChange={v => setForm(f => ({ ...f, credentials: { ...f.credentials, mikrotik: { ...f.credentials?.mikrotik, api_port: parseInt(v) } } }))}
+                      placeholder="8728"
+                    />
+                  </Field>
+                </div>
+              )}
+
+              {form.vendor === 'cisco' && (
+                <div className="grid grid-cols-2 gap-3">
+                  <Field label="SSH Username">
+                    <Input
+                      value={form.credentials?.cisco?.ssh_user ?? ''}
+                      onChange={v => setForm(f => ({ ...f, credentials: { ...f.credentials, cisco: { ...f.credentials?.cisco, ssh_user: v } } }))}
+                      placeholder="admin"
+                    />
+                  </Field>
+                  <Field label="SSH Password">
+                    <Input
+                      type="password"
+                      value={form.credentials?.cisco?.ssh_pass ?? ''}
+                      onChange={v => setForm(f => ({ ...f, credentials: { ...f.credentials, cisco: { ...f.credentials?.cisco, ssh_pass: v } } }))}
+                      placeholder="••••••••"
+                    />
+                  </Field>
+                  <Field label="Enable Password">
+                    <Input
+                      type="password"
+                      value={form.credentials?.cisco?.enable_pass ?? ''}
+                      onChange={v => setForm(f => ({ ...f, credentials: { ...f.credentials, cisco: { ...f.credentials?.cisco, enable_pass: v } } }))}
+                      placeholder="(optional)"
+                    />
+                  </Field>
+                  <Field label="SSH Port">
+                    <Input
+                      type="number"
+                      value={form.credentials?.cisco?.ssh_port ?? 22}
+                      onChange={v => setForm(f => ({ ...f, credentials: { ...f.credentials, cisco: { ...f.credentials?.cisco, ssh_port: parseInt(v) } } }))}
+                      placeholder="22"
+                    />
+                  </Field>
+                </div>
+              )}
+            </div>
+          )}
 
           <div className="flex gap-3 pt-1">
             <button type="button" onClick={() => setModalOpen(false)} className="flex-1 py-2.5 rounded-xl border border-slate-200 text-sm text-slate-600 hover:bg-slate-50 transition">

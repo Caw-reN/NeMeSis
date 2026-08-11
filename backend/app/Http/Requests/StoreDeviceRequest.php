@@ -24,11 +24,20 @@ class StoreDeviceRequest extends FormRequest
             'location'        => ['nullable', 'string', 'max:150'],
             'description'     => ['nullable', 'string', 'max:500'],
             'is_active'       => ['boolean'],
-            // Credential fields — will be encrypted before storage
-            'credentials'          => ['nullable', 'array'],
-            'credentials.password' => ['nullable', 'string'],
-            'credentials.api_token'=> ['nullable', 'string'],
-            'credentials.ssh_key'  => ['nullable', 'string'],
+            // Credential fields — stored encrypted as a nested JSON blob.
+            // Structure: { mikrotik: { api_user, api_pass, api_port }, cisco: { ssh_user, ssh_pass, enable_pass, ssh_port } }
+            'credentials'                    => ['nullable', 'array'],
+            // Mikrotik RouterOS API
+            'credentials.mikrotik'           => ['nullable', 'array'],
+            'credentials.mikrotik.api_user'  => ['nullable', 'string', 'max:100'],
+            'credentials.mikrotik.api_pass'  => ['nullable', 'string', 'max:255'],
+            'credentials.mikrotik.api_port'  => ['nullable', 'integer', 'min:1', 'max:65535'],
+            // Cisco SSH
+            'credentials.cisco'              => ['nullable', 'array'],
+            'credentials.cisco.ssh_user'     => ['nullable', 'string', 'max:100'],
+            'credentials.cisco.ssh_pass'     => ['nullable', 'string', 'max:255'],
+            'credentials.cisco.enable_pass'  => ['nullable', 'string', 'max:255'],
+            'credentials.cisco.ssh_port'     => ['nullable', 'integer', 'min:1', 'max:65535'],
         ];
     }
 
