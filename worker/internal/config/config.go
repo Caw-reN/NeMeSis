@@ -50,7 +50,7 @@ func Load() (*Config, error) {
 }
 
 func getEnv(key, defaultVal string) string {
-	if val := os.Getenv(key); val != "" {
+	if val, exists := os.LookupEnv(key); exists {
 		return val
 	}
 	return defaultVal

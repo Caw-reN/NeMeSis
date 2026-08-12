@@ -32,6 +32,7 @@ class TopologyController extends Controller
             'to'    => $link->target_device_id,
             'label' => $link->label,
             'type'  => $link->link_type,
+            'cable_type' => $link->cable_type,
             'data'  => [
                 'source_interface' => $link->source_interface,
                 'target_interface' => $link->target_interface,
@@ -54,6 +55,7 @@ class TopologyController extends Controller
             'source_device_id'  => ['required', 'exists:devices,id'],
             'target_device_id'  => ['required', 'exists:devices,id', 'different:source_device_id'],
             'link_type'         => ['in:physical,logical,manual'],
+            'cable_type'        => ['nullable', 'string', 'max:50'],
             'label'             => ['nullable', 'string', 'max:50'],
             'source_interface'  => ['nullable', 'string', 'max:50'],
             'target_interface'  => ['nullable', 'string', 'max:50'],
@@ -72,6 +74,7 @@ class TopologyController extends Controller
             'from' => $link->source_device_id,
             'to'   => $link->target_device_id,
             'type' => $link->link_type,
+            'cable_type' => $link->cable_type,
             'label'=> $link->label,
         ], 201);
     }
@@ -95,6 +98,7 @@ class TopologyController extends Controller
     {
         $data = $request->validate([
             'link_type'        => ['in:physical,logical,manual'],
+            'cable_type'       => ['nullable', 'string', 'max:50'],
             'label'            => ['nullable', 'string', 'max:50'],
             'source_interface' => ['nullable', 'string', 'max:50'],
             'target_interface' => ['nullable', 'string', 'max:50'],

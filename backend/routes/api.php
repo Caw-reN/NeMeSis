@@ -3,6 +3,7 @@
 use App\Http\Controllers\Api\AuthController;
 use App\Http\Controllers\Api\DashboardController;
 use App\Http\Controllers\Api\DeviceController;
+use App\Http\Controllers\Api\DeviceConfigController;
 use App\Http\Controllers\Api\MetricsController;
 use App\Http\Controllers\Api\TopologyController;
 use Illuminate\Support\Facades\Route;
@@ -37,7 +38,14 @@ Route::middleware('auth:sanctum')->group(function () {
 
     // Devices
     Route::apiResource('devices', DeviceController::class);
-    Route::get('devices/{device}/logs', [DeviceController::class, 'logs']);
+    Route::get('devices/{device}/logs',       [DeviceController::class, 'logs']);
+    Route::get('devices/{device}/interfaces', [DeviceController::class, 'interfaces']);
+
+    // Config — Fase 3b (Write Mode)
+    Route::post('devices/{device}/config/port',    [DeviceConfigController::class, 'togglePort']);
+    Route::post('devices/{device}/config/vlan',    [DeviceConfigController::class, 'changeVlan']);
+    Route::post('devices/{device}/config/reboot',  [DeviceConfigController::class, 'reboot']);
+    Route::post('devices/{device}/config/execute', [DeviceConfigController::class, 'executeTerminal']);
 
     // Topology
     Route::get('topology', [TopologyController::class, 'index']);

@@ -238,6 +238,7 @@ export default function DevicesPage() {
                 <div className="grid grid-cols-2 gap-3">
                   <Field label="API Username">
                     <Input
+                      autoComplete="off"
                       value={form.credentials?.mikrotik?.api_user ?? ''}
                       onChange={v => setForm(f => ({ ...f, credentials: { ...f.credentials, mikrotik: { ...f.credentials?.mikrotik, api_user: v } } }))}
                       placeholder="admin"
@@ -246,6 +247,7 @@ export default function DevicesPage() {
                   <Field label="API Password">
                     <Input
                       type="password"
+                      autoComplete="new-password"
                       value={form.credentials?.mikrotik?.api_pass ?? ''}
                       onChange={v => setForm(f => ({ ...f, credentials: { ...f.credentials, mikrotik: { ...f.credentials?.mikrotik, api_pass: v } } }))}
                       placeholder="••••••••"
@@ -266,6 +268,7 @@ export default function DevicesPage() {
                 <div className="grid grid-cols-2 gap-3">
                   <Field label="SSH Username">
                     <Input
+                      autoComplete="off"
                       value={form.credentials?.cisco?.ssh_user ?? ''}
                       onChange={v => setForm(f => ({ ...f, credentials: { ...f.credentials, cisco: { ...f.credentials?.cisco, ssh_user: v } } }))}
                       placeholder="admin"
@@ -274,6 +277,7 @@ export default function DevicesPage() {
                   <Field label="SSH Password">
                     <Input
                       type="password"
+                      autoComplete="new-password"
                       value={form.credentials?.cisco?.ssh_pass ?? ''}
                       onChange={v => setForm(f => ({ ...f, credentials: { ...f.credentials, cisco: { ...f.credentials?.cisco, ssh_pass: v } } }))}
                       placeholder="••••••••"
@@ -282,6 +286,7 @@ export default function DevicesPage() {
                   <Field label="Enable Password">
                     <Input
                       type="password"
+                      autoComplete="new-password"
                       value={form.credentials?.cisco?.enable_pass ?? ''}
                       onChange={v => setForm(f => ({ ...f, credentials: { ...f.credentials, cisco: { ...f.credentials?.cisco, enable_pass: v } } }))}
                       placeholder="(optional)"
@@ -290,6 +295,7 @@ export default function DevicesPage() {
                   <Field label="SSH Port">
                     <Input
                       type="number"
+                      autoComplete="off"
                       value={form.credentials?.cisco?.ssh_port ?? 22}
                       onChange={v => setForm(f => ({ ...f, credentials: { ...f.credentials, cisco: { ...f.credentials?.cisco, ssh_port: parseInt(v) } } }))}
                       placeholder="22"

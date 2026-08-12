@@ -9,10 +9,14 @@ import CiscoMetricsPanel    from '../components/metrics/CiscoMetricsPanel'
 import { devicesService }   from '../services/devices.service'
 import { vendorLabel, typeLabel, timeAgo, formatLatency } from '../utils/helpers'
 import { toast } from '../utils/toast'
+import ConfigConfirmationModal from '../components/ui/ConfigConfirmationModal'
+import TerminalPanel from '../components/metrics/TerminalPanel'
+import api from '../services/api'
 
 const TABS = [
   { id: 'monitoring', label: 'Monitoring' },
   { id: 'logs',       label: 'Logs'       },
+  { id: 'terminal',   label: 'Terminal'   },
 ]
 
 export default function DeviceDetailPage() {
@@ -23,6 +27,8 @@ export default function DeviceDetailPage() {
   const [logs,    setLogs]    = useState([])
   const [loading, setLoading] = useState(true)
   const [tab,     setTab]     = useState('monitoring')
+  const [rebooting, setRebooting] = useState(false)
+  const [rebootModalOpen, setRebootModalOpen] = useState(false)
 
   useEffect(() => {
     Promise.all([
@@ -56,6 +62,19 @@ export default function DeviceDetailPage() {
   }
 
   const hasMetrics = device.vendor === 'mikrotik' || device.vendor === 'cisco'
+
+  const handleReboot = async () => {
+    setRebooting(true)
+    try {
+      await api.post(`/api/devices/${device.id}/config/reboot`)
+      toast.success(`${device.name} is rebooting...`)
+      setRebootModalOpen(false)
+    } catch (err) {
+      toast.error(err?.response?.data?.message || err.message || 'Failed to initiate reboot')
+    } finally {
+      setRebooting(false)
+    }
+  }
 
   return (
     <motion.div
@@ -97,13 +116,23 @@ export default function DeviceDetailPage() {
               </p>
             )}
           </div>
+          {hasMetrics && (
+            <div className="flex shrink-0">
+              <button
+                onClick={() => setRebootModalOpen(true)}
+                className="flex items-center gap-2 px-4 py-2 text-sm font-semibold text-rose-700 bg-rose-50 hover:bg-rose-100 rounded-xl transition border border-rose-100"
+              >
+                Reboot Device
+              </button>
+            </div>
+          )}
         </div>
       </div>
 
       {/* Tab navigation */}
       <div className="flex gap-1 bg-slate-100 rounded-xl p-1 w-fit">
         {TABS.map(t => (
-          t.id === 'monitoring' && !hasMetrics ? null : (
+          (t.id === 'monitoring' || t.id === 'terminal') && !hasMetrics ? null : (
             <button
               key={t.id}
               onClick={() => setTab(t.id)}
@@ -144,8 +173,24 @@ export default function DeviceDetailPage() {
               <DeviceLogTable logs={logs} />
             </div>
           )}
+          
+          {tab === 'terminal' && hasMetrics && (
+            <div className="bg-white rounded-2xl border border-slate-200 shadow-sm h-[600px] overflow-hidden">
+              <TerminalPanel deviceId={device.id} />
+            </div>
+          )}
         </motion.div>
       </AnimatePresence>
+
+      <ConfigConfirmationModal
+        open={rebootModalOpen}
+        onOpenChange={setRebootModalOpen}
+        deviceName={device.name}
+        actionTitle="Reboot Device"
+        actionDescription="This will restart the network device and cause temporary network disruption."
+        onConfirm={handleReboot}
+        loading={rebooting}
+      />
     </motion.div>
   )
 }

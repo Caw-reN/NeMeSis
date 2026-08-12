@@ -1,3 +1,5 @@
+import { ArrowUp, ArrowDown } from 'lucide-react'
+
 /**
  * InterfaceTable — generik untuk Mikrotik dan Cisco interfaces.
  *
@@ -5,7 +7,7 @@
  *   interfaces  — array of interface objects
  *   vendor      — 'mikrotik' | 'cisco'
  */
-export default function InterfaceTable({ interfaces = [], vendor }) {
+export default function InterfaceTable({ interfaces = [], vendor, onTogglePort }) {
   if (!interfaces.length) {
     return <p className="text-sm text-slate-400 py-4 text-center">No interface data available.</p>
   }
@@ -36,15 +38,16 @@ export default function InterfaceTable({ interfaces = [], vendor }) {
                 <Th>Errors In</Th>
               </>
             )}
+            {onTogglePort && <Th align="right">Action</Th>}
           </tr>
         </thead>
         <tbody className="divide-y divide-slate-100">
           {interfaces.map((iface, i) => (
             <tr key={i} className="hover:bg-slate-50 transition-colors">
               {isMikrotik ? (
-                <MikrotikRow iface={iface} />
+                <MikrotikRow iface={iface} onTogglePort={onTogglePort} />
               ) : (
-                <CiscoRow iface={iface} />
+                <CiscoRow iface={iface} onTogglePort={onTogglePort} />
               )}
             </tr>
           ))}
@@ -54,7 +57,7 @@ export default function InterfaceTable({ interfaces = [], vendor }) {
   )
 }
 
-function MikrotikRow({ iface }) {
+function MikrotikRow({ iface, onTogglePort }) {
   const isUp = iface.running === 'true' || iface.disabled === 'false'
   return (
     <>
@@ -65,11 +68,24 @@ function MikrotikRow({ iface }) {
       <Td className="font-mono">{fmt(iface['tx-bits-per-second'])}</Td>
       <Td className="font-mono">{fmt(iface['rx-packet'])}</Td>
       <Td className="font-mono">{fmt(iface['tx-packet'])}</Td>
+      {onTogglePort && (
+        <Td align="right">
+          <button
+            onClick={() => onTogglePort(iface.name, iface.disabled === 'true')}
+            className={`relative inline-flex h-5 w-9 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none ${
+              iface.disabled === 'false' ? 'bg-emerald-500 hover:bg-emerald-600' : 'bg-slate-300 hover:bg-slate-400'
+            }`}
+            title={iface.disabled === 'false' ? 'Disable Port' : 'Enable Port'}
+          >
+            <span className={`pointer-events-none inline-block h-4 w-4 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out ${iface.disabled === 'false' ? 'translate-x-4' : 'translate-x-0'}`} />
+          </button>
+        </Td>
+      )}
     </>
   )
 }
 
-function CiscoRow({ iface }) {
+function CiscoRow({ iface, onTogglePort }) {
   const isUp = iface.admin_status === 'up' && iface.line_protocol === 'up'
   return (
     <>
@@ -80,6 +96,19 @@ function CiscoRow({ iface }) {
       <Td className="font-mono">{fmtBps(iface.input_bps)}</Td>
       <Td className="font-mono">{fmtBps(iface.output_bps)}</Td>
       <Td className="font-mono text-rose-600">{fmt(iface.errors_in)}</Td>
+      {onTogglePort && (
+        <Td align="right">
+          <button
+            onClick={() => onTogglePort(iface.name, iface.admin_status !== 'up')}
+            className={`relative inline-flex h-5 w-9 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none ${
+              iface.admin_status === 'up' ? 'bg-emerald-500 hover:bg-emerald-600' : 'bg-slate-300 hover:bg-slate-400'
+            }`}
+            title={iface.admin_status === 'up' ? 'Disable Port' : 'Enable Port'}
+          >
+            <span className={`pointer-events-none inline-block h-4 w-4 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out ${iface.admin_status === 'up' ? 'translate-x-4' : 'translate-x-0'}`} />
+          </button>
+        </Td>
+      )}
     </>
   )
 }
@@ -87,23 +116,26 @@ function CiscoRow({ iface }) {
 function StatusDot({ up }) {
   return (
     <span className={`inline-flex items-center gap-1.5 text-xs font-semibold ${up ? 'text-emerald-600' : 'text-rose-500'}`}>
-      <span className={`w-2 h-2 rounded-full ${up ? 'bg-emerald-500 animate-pulse' : 'bg-rose-400'}`} />
+      {up
+        ? <ArrowUp size={12} strokeWidth={2.5} className="text-emerald-500" />
+        : <ArrowDown size={12} strokeWidth={2.5} className="text-rose-400" />
+      }
       {up ? 'UP' : 'DOWN'}
     </span>
   )
 }
 
-function Th({ children }) {
+function Th({ children, align = 'left' }) {
   return (
-    <th className="px-4 py-2.5 text-left text-xs font-semibold text-slate-500 uppercase tracking-wider whitespace-nowrap">
+    <th className={`px-4 py-2.5 text-xs font-semibold text-slate-500 uppercase tracking-wider ${align === 'right' ? 'text-right' : 'text-left'}`}>
       {children}
     </th>
   )
 }
 
-function Td({ children, className = '' }) {
+function Td({ children, className = '', align = 'left' }) {
   return (
-    <td className={`px-4 py-2.5 text-slate-700 whitespace-nowrap ${className}`}>
+    <td className={`px-4 py-2.5 ${align === 'right' ? 'text-right' : 'text-left'} ${className}`}>
       {children}
     </td>
   )

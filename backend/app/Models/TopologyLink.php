@@ -14,6 +14,7 @@ class TopologyLink extends Model
         'source_device_id',
         'target_device_id',
         'link_type',
+        'cable_type',
         'label',
         'source_interface',
         'target_interface',

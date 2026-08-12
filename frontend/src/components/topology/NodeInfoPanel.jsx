@@ -1,26 +1,36 @@
 import { motion, AnimatePresence } from 'framer-motion'
-import { X, Wifi, Clock, Zap, MapPin, Info } from 'lucide-react'
+import { X, Wifi, Clock, Zap, MapPin, Info, Pencil } from 'lucide-react'
 import StatusBadge   from '../ui/StatusBadge'
 import DeviceTypeIcon from '../ui/DeviceTypeIcon'
 import { formatLatency, timeAgo, vendorLabel, typeLabel } from '../../utils/helpers'
 
 /**
- * NodeInfoPanel — slides in from the right when a topology node is selected.
+ * NodeInfoPanel — appears near the cursor when a topology node is selected.
  *
  * Props:
  *   node     — device object (from API /api/devices/{id})
+ *   position — { x, y } click coordinates from Vis.js pointer.DOM
+ *   onEdit   — callback to enter edit mode
  *   onClose  — callback to deselect
  */
-export default function NodeInfoPanel({ node, onClose }) {
+export default function NodeInfoPanel({ node, position, onEdit, onClose }) {
+  // Calculate constrained position to prevent modal from going off-screen
+  const modalStyle = position ? {
+    top:  Math.max(20, Math.min(position.y + 15, window.innerHeight - 400)),
+    left: Math.max(20, Math.min(position.x + 15, window.innerWidth - 320))
+  } : {}
   return (
     <AnimatePresence>
       {node && (
-        <motion.aside
-          initial={{ x: '100%', opacity: 0.5 }}
-          animate={{ x: 0,      opacity: 1   }}
-          exit={{    x: '100%', opacity: 0   }}
-          transition={{ duration: 0.25, ease: 'easeOut' }}
-          className="absolute top-0 right-0 h-full w-72 bg-white border-l border-slate-200 shadow-xl z-10 flex flex-col overflow-y-auto"
+        <motion.div
+          initial={{ scale: 0.9, opacity: 0 }}
+          animate={{ scale: 1,   opacity: 1 }}
+          exit={{    scale: 0.9, opacity: 0 }}
+          transition={{ duration: 0.15, ease: 'easeOut' }}
+          className={`absolute z-20 w-72 max-h-[calc(100vh-140px)] bg-white/95 backdrop-blur-md rounded-3xl border border-slate-200 shadow-2xl flex flex-col overflow-y-auto ${
+            !position ? 'bottom-24 right-4 lg:right-6' : ''
+          }`}
+          style={modalStyle}
         >
           {/* Header */}
           <div className="flex items-start justify-between p-4 border-b border-slate-100">
@@ -33,9 +43,14 @@ export default function NodeInfoPanel({ node, onClose }) {
                 <p className="text-xs text-slate-400 font-mono">{node.ip_address}</p>
               </div>
             </div>
-            <button onClick={onClose} className="text-slate-400 hover:text-slate-600 p-1 rounded-lg hover:bg-slate-100 transition shrink-0">
-              <X size={16} />
-            </button>
+            <div className="flex items-center gap-1 shrink-0">
+              <button onClick={onEdit} className="text-slate-400 hover:text-indigo-600 p-1.5 rounded-xl hover:bg-indigo-50 transition" title="Edit Device">
+                <Pencil size={15} />
+              </button>
+              <button onClick={onClose} className="text-slate-400 hover:text-slate-600 p-1.5 rounded-xl hover:bg-slate-100 transition" title="Close">
+                <X size={15} />
+              </button>
+            </div>
           </div>
 
           {/* Status */}
@@ -80,7 +95,7 @@ export default function NodeInfoPanel({ node, onClose }) {
               </Section>
             )}
           </div>
-        </motion.aside>
+        </motion.div>
       )}
     </AnimatePresence>
   )

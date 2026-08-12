@@ -65,39 +65,66 @@ class MikrotikService
 
     private function login(string $username, string $password): void
     {
-        // Phase 1: send initial /login to receive challenge (pre-v6.43) or just done
-        $this->sendSentence(['/login']);
-        $response = $this->readSentence();
+        // Try the modern v6.43+ login first (or get challenge for pre-v6.43)
+        $this->sendSentence(['/login', "=name={$username}", "=password={$password}"]);
+        $sentence = $this->readSentence();
 
-        $challenge = null;
-        foreach ($response as $word) {
-            if (str_starts_with($word, '=ret=')) {
-                $challenge = substr($word, 5);
-            }
+        if (empty($sentence)) {
+            throw new \RuntimeException('Empty response from Mikrotik during login.');
         }
 
-        if ($challenge !== null && $challenge !== '') {
-            // Pre-v6.43: MD5 challenge-response
-            $hash = md5(chr(0) . $password . pack('H*', $challenge));
-            $this->sendSentence(['/login', "=name={$username}", "=response=00{$hash}"]);
-        } else {
-            // v6.43+: plain text password
-            $this->sendSentence(['/login', "=name={$username}", "=password={$password}"]);
-        }
+        $type = $sentence[0];
 
-        $response = $this->readSentence();
-
-        foreach ($response as $word) {
-            if ($word === '!trap' || $word === '!fatal') {
-                $msg = 'Authentication failed';
-                foreach ($response as $w) {
-                    if (str_starts_with($w, '=message=')) {
-                        $msg = substr($w, 9);
-                    }
+        if ($type === '!trap' || $type === '!fatal') {
+            // Clear the subsequent !done from buffer
+            $this->readSentence();
+            
+            $msg = 'Authentication failed';
+            foreach ($sentence as $word) {
+                if (str_starts_with($word, '=message=')) {
+                    $msg = substr($word, 9);
                 }
-                throw new \RuntimeException("Mikrotik login failed: {$msg}");
             }
+            throw new \RuntimeException("Mikrotik login failed: {$msg}");
         }
+
+        if ($type === '!done') {
+            $challenge = null;
+            foreach ($sentence as $word) {
+                if (str_starts_with($word, '=ret=')) {
+                    $challenge = substr($word, 5);
+                }
+            }
+
+            if ($challenge) {
+                // Pre-v6.43: perform MD5 challenge-response
+                $hash = md5(chr(0) . $password . pack('H*', $challenge));
+                $this->sendSentence(['/login', "=name={$username}", "=response=00{$hash}"]);
+                
+                $sentence2 = $this->readSentence();
+                $type2 = $sentence2[0] ?? '';
+                
+                if ($type2 === '!trap' || $type2 === '!fatal') {
+                    $this->readSentence(); // clear !done
+                    $msg = 'Challenge authentication failed';
+                    foreach ($sentence2 as $word) {
+                        if (str_starts_with($word, '=message=')) {
+                            $msg = substr($word, 9);
+                        }
+                    }
+                    throw new \RuntimeException("Mikrotik login failed: {$msg}");
+                }
+                
+                if ($type2 !== '!done') {
+                    throw new \RuntimeException("Unexpected response during challenge login: {$type2}");
+                }
+            }
+            
+            // Login successful!
+            return;
+        }
+
+        throw new \RuntimeException("Unexpected response type during login: {$type}");
     }
 
     // =========================================================================
@@ -188,6 +215,63 @@ class MikrotikService
     // =========================================================================
     // Low-level Protocol Implementation
     // =========================================================================
+
+    // =========================================================================
+    // Fase 3b: Remote Configuration (Write Mode)
+    // =========================================================================
+
+    /**
+     * Execute a raw terminal command via the RouterOS API.
+     * Note: Not all CLI commands map cleanly to the API. This attempts to run it
+     * or return the raw output.
+     */
+    public function executeTerminalCommand(string $command): string
+    {
+        // For Mikrotik, raw terminal commands over API usually use /system/console/print or similar,
+        // but executing arbitrary CLI string via API is not natively supported like SSH.
+        // We will try to map common commands or throw an error indicating SSH should be used.
+        // Actually, if we just split by space and prefix with '/', it might work for basic commands.
+        $words = explode(' ', trim($command));
+        $words[0] = str_starts_with($words[0], '/') ? $words[0] : '/' . $words[0];
+        
+        try {
+            $result = $this->query($words);
+            return json_encode($result, JSON_PRETTY_PRINT);
+        } catch (\Exception $e) {
+            return "Error executing command: " . $e->getMessage();
+        }
+    }
+
+    /**
+     * Enable or disable a port (interface).
+     */
+    public function setPortState(string $interfaceName, bool $enable): void
+    {
+        // First we must get the internal .id of the interface
+        $interfaces = $this->query(['/interface/print', "?name={$interfaceName}"]);
+        if (empty($interfaces)) {
+            throw new \RuntimeException("Interface '{$interfaceName}' not found.");
+        }
+        $id = $interfaces[0]['.id'];
+
+        $command = $enable ? '/interface/enable' : '/interface/disable';
+        $this->query([$command, "=.id={$id}"]);
+    }
+
+    /**
+     * Reboot the device.
+     */
+    public function reboot(): void
+    {
+        // The API does not require a Y/N confirmation for reboot.
+        // However, the socket will immediately close, so we expect a read error.
+        try {
+            $this->sendSentence(['/system/reboot']);
+            $this->readSentence();
+        } catch (\Exception $e) {
+            // Socket closing abruptly is expected here.
+        }
+    }
 
     /**
      * Send a sentence (command) and read all response lines until !done or !trap.

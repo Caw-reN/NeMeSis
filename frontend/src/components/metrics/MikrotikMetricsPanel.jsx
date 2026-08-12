@@ -4,6 +4,8 @@ import { RefreshCw, Cpu, MemoryStick, Wifi, Network, Users, Clock } from 'lucide
 import InterfaceTable from './InterfaceTable'
 import { metricsService } from '../../services/metrics.service'
 import { toast } from '../../utils/toast'
+import ConfigConfirmationModal from '../ui/ConfigConfirmationModal'
+import api from '../../services/api'
 
 const REFRESH_INTERVAL_MS = 30_000
 
@@ -27,6 +29,9 @@ export default function MikrotikMetricsPanel({ deviceId, deviceName }) {
   const [lastAt,  setLastAt]    = useState(null)
   const [tab,     setTab]       = useState('interfaces') // interfaces | dhcp | routing
 
+  const [portModal, setPortModal] = useState({ open: false, port: null, enable: false })
+  const [portLoading, setPortLoading] = useState(false)
+
   const fetchMetrics = useCallback(async (silent = false) => {
     if (!silent) setLoading(true)
     setError(null)
@@ -35,7 +40,13 @@ export default function MikrotikMetricsPanel({ deviceId, deviceName }) {
       setMetrics(data)
       setLastAt(new Date())
     } catch (err) {
-      const msg = err?.response?.data?.error ?? err?.message ?? 'Failed to fetch Mikrotik metrics.'
+      const errorMsg = err?.response?.data?.error
+      const detailsMsg = err?.response?.data?.details
+      
+      const msg = errorMsg
+        ? `${errorMsg} ${detailsMsg ? `(${detailsMsg})` : ''}`
+        : err?.message ?? 'Failed to fetch Mikrotik metrics.'
+        
       setError(msg)
       if (!silent) toast.error(msg)
     } finally {
@@ -48,6 +59,26 @@ export default function MikrotikMetricsPanel({ deviceId, deviceName }) {
     const interval = setInterval(() => fetchMetrics(true), REFRESH_INTERVAL_MS)
     return () => clearInterval(interval)
   }, [fetchMetrics])
+
+  const handleTogglePort = (port, enable) => {
+    setPortModal({ open: true, port, enable })
+  }
+
+  const confirmPortToggle = async () => {
+    setPortLoading(true)
+    try {
+      await api.post(`/api/devices/${deviceId}/config/port`, {
+        interface: portModal.port, enable: portModal.enable
+      })
+      toast.success(`Port ${portModal.port} successfully ${portModal.enable ? 'enabled' : 'disabled'}.`)
+      setPortModal({ open: false, port: null, enable: false })
+      fetchMetrics(true)
+    } catch (err) {
+      toast.error(err?.response?.data?.message || err.message || 'Failed to change port state')
+    } finally {
+      setPortLoading(false)
+    }
+  }
 
   const res = metrics?.system_resources
 
@@ -156,7 +187,7 @@ export default function MikrotikMetricsPanel({ deviceId, deviceName }) {
               transition={{ duration: 0.15 }}
             >
               {tab === 'interfaces' && (
-                <InterfaceTable interfaces={metrics.interfaces ?? []} vendor="mikrotik" />
+                <InterfaceTable interfaces={metrics.interfaces ?? []} vendor="mikrotik" onTogglePort={handleTogglePort} />
               )}
               {tab === 'dhcp' && (
                 <DhcpLeasesTable leases={metrics.dhcp_leases ?? []} />
@@ -166,6 +197,16 @@ export default function MikrotikMetricsPanel({ deviceId, deviceName }) {
               )}
             </motion.div>
           </AnimatePresence>
+
+          <ConfigConfirmationModal
+            open={portModal.open}
+            onOpenChange={(open) => setPortModal(prev => ({ ...prev, open }))}
+            deviceName={deviceName}
+            actionTitle={`${portModal.enable ? 'Enable' : 'Disable'} Port ${portModal.port}`}
+            actionDescription={`This will physically ${portModal.enable ? 'bring up' : 'shut down'} the interface ${portModal.port} on the router.`}
+            onConfirm={confirmPortToggle}
+            loading={portLoading}
+          />
         </>
       )}
     </div>

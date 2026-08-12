@@ -4,6 +4,9 @@ import { RefreshCw, Server, Network, Tag, AlertTriangle } from 'lucide-react'
 import InterfaceTable from './InterfaceTable'
 import { metricsService } from '../../services/metrics.service'
 import { toast } from '../../utils/toast'
+import ConfigConfirmationModal from '../ui/ConfigConfirmationModal'
+import VlanChangeModal from '../ui/VlanChangeModal'
+import api from '../../services/api'
 
 const REFRESH_INTERVAL_MS = 30_000
 
@@ -26,6 +29,12 @@ export default function CiscoMetricsPanel({ deviceId, deviceName }) {
   const [error,   setError]   = useState(null)
   const [lastAt,  setLastAt]  = useState(null)
   const [tab,     setTab]     = useState('status') // status | counters | vlan
+  
+  const [portModal, setPortModal] = useState({ open: false, port: null, enable: false })
+  const [portLoading, setPortLoading] = useState(false)
+
+  const [vlanModal, setVlanModal] = useState({ open: false, port: null, currentVlan: '' })
+  const [vlanLoading, setVlanLoading] = useState(false)
 
   const fetchMetrics = useCallback(async (silent = false) => {
     if (!silent) setLoading(true)
@@ -35,7 +44,13 @@ export default function CiscoMetricsPanel({ deviceId, deviceName }) {
       setMetrics(data)
       setLastAt(new Date())
     } catch (err) {
-      const msg = err?.response?.data?.error ?? err?.message ?? 'Failed to fetch Cisco metrics.'
+      const errorMsg = err?.response?.data?.error
+      const detailsMsg = err?.response?.data?.details
+      
+      const msg = errorMsg
+        ? `${errorMsg} ${detailsMsg ? `(${detailsMsg})` : ''}`
+        : err?.message ?? 'Failed to fetch Cisco metrics.'
+        
       setError(msg)
       if (!silent) toast.error(msg)
     } finally {
@@ -48,6 +63,54 @@ export default function CiscoMetricsPanel({ deviceId, deviceName }) {
     const interval = setInterval(() => fetchMetrics(true), REFRESH_INTERVAL_MS)
     return () => clearInterval(interval)
   }, [fetchMetrics])
+
+  const handleTogglePort = (port, enable) => {
+    setPortModal({ open: true, port, enable })
+  }
+
+  const confirmPortToggle = async () => {
+    setPortLoading(true)
+    try {
+      await api.post(`/api/devices/${deviceId}/config/port`, {
+        interface: portModal.port, enable: portModal.enable
+      })
+      toast.success(`Port ${portModal.port} successfully ${portModal.enable ? 'enabled' : 'disabled'}.`)
+      setPortModal({ open: false, port: null, enable: false })
+      fetchMetrics(true)
+    } catch (err) {
+      toast.error(err?.response?.data?.message || err.message || 'Failed to change port state')
+    } finally {
+      setPortLoading(false)
+    }
+  }
+
+  const handleEditVlan = (port, currentVlan) => {
+    setVlanModal({ open: true, port, currentVlan })
+  }
+
+  const confirmVlanChange = async (mode, newVlanId) => {
+    setVlanLoading(true)
+    try {
+      await api.post(`/api/devices/${deviceId}/config/vlan`, {
+        interface: vlanModal.port,
+        mode: mode,
+        vlan_id: mode === 'access' ? newVlanId : null
+      })
+      
+      if (mode === 'trunk') {
+        toast.success(`Port ${vlanModal.port} successfully changed to Trunk mode.`)
+      } else {
+        toast.success(`Port ${vlanModal.port} successfully assigned to VLAN ${newVlanId}.`)
+      }
+      
+      setVlanModal({ open: false, port: null, currentVlan: '' })
+      fetchMetrics(true)
+    } catch (err) {
+      toast.error(err?.response?.data?.message || err.message || 'Failed to change port configuration')
+    } finally {
+      setVlanLoading(false)
+    }
+  }
 
   const ver = metrics?.version ?? {}
 
@@ -131,7 +194,11 @@ export default function CiscoMetricsPanel({ deviceId, deviceName }) {
               transition={{ duration: 0.15 }}
             >
               {tab === 'status' && (
-                <InterfaceStatusTable interfaces={metrics.interface_status ?? []} />
+                <InterfaceStatusTable 
+                  interfaces={metrics.interface_status ?? []} 
+                  onTogglePort={handleTogglePort}
+                  onEditVlan={handleEditVlan}
+                />
               )}
               {tab === 'counters' && (
                 <InterfaceTable interfaces={metrics.interface_detail ?? []} vendor="cisco" />
@@ -141,6 +208,26 @@ export default function CiscoMetricsPanel({ deviceId, deviceName }) {
               )}
             </motion.div>
           </AnimatePresence>
+          
+          <ConfigConfirmationModal
+            open={portModal.open}
+            onOpenChange={(open) => setPortModal(prev => ({ ...prev, open }))}
+            deviceName={deviceName}
+            actionTitle={`${portModal.enable ? 'Enable' : 'Disable'} Port ${portModal.port}`}
+            actionDescription={`This will physically ${portModal.enable ? 'bring up' : 'shut down'} the interface ${portModal.port} on the switch.`}
+            onConfirm={confirmPortToggle}
+            loading={portLoading}
+          />
+
+          <VlanChangeModal
+            open={vlanModal.open}
+            onOpenChange={(open) => setVlanModal(prev => ({ ...prev, open }))}
+            portName={vlanModal.port}
+            currentVlan={vlanModal.currentVlan}
+            vlans={metrics.vlan_brief ?? []}
+            onConfirm={confirmVlanChange}
+            loading={vlanLoading}
+          />
         </>
       )}
     </div>
@@ -158,7 +245,7 @@ function InfoCard({ icon, label, value, accent }) {
   )
 }
 
-function InterfaceStatusTable({ interfaces }) {
+function InterfaceStatusTable({ interfaces, onTogglePort, onEditVlan }) {
   if (!interfaces.length) return <p className="text-sm text-slate-400 py-4 text-center">No interface status data.</p>
 
   return (
@@ -166,8 +253,8 @@ function InterfaceStatusTable({ interfaces }) {
       <table className="w-full text-sm">
         <thead>
           <tr className="bg-slate-50 border-b border-slate-200">
-            {['Port', 'Name', 'Status', 'VLAN', 'Duplex', 'Speed', 'Type'].map(h => (
-              <th key={h} className="px-4 py-2.5 text-left text-xs font-semibold text-slate-500 uppercase tracking-wider">{h}</th>
+            {['Port', 'Name', 'Status', 'VLAN', 'Duplex', 'Speed', 'Type', 'Action'].map(h => (
+              <th key={h} className={`px-4 py-2.5 text-left text-xs font-semibold text-slate-500 uppercase tracking-wider ${h === 'Action' ? 'text-right' : ''}`}>{h}</th>
             ))}
           </tr>
         </thead>
@@ -188,10 +275,33 @@ function InterfaceStatusTable({ interfaces }) {
                     {iface.status}
                   </span>
                 </td>
-                <td className="px-4 py-2.5 font-mono text-slate-600">{iface.vlan}</td>
+                <td className="px-4 py-2.5">
+                  {iface.vlan && iface.vlan !== 'routed' ? (
+                    <button
+                      onClick={() => onEditVlan(iface.port, iface.vlan)}
+                      className="font-mono text-indigo-600 hover:text-indigo-800 hover:bg-indigo-50 px-2 py-1 rounded transition"
+                      title="Change Port Mode/VLAN"
+                    >
+                      {iface.vlan}
+                    </button>
+                  ) : (
+                    <span className="font-mono text-slate-600 px-2 py-1">{iface.vlan}</span>
+                  )}
+                </td>
                 <td className="px-4 py-2.5 text-slate-500">{iface.duplex}</td>
                 <td className="px-4 py-2.5 text-slate-500">{iface.speed}</td>
                 <td className="px-4 py-2.5 text-slate-400 text-xs">{iface.type}</td>
+                <td className="px-4 py-2.5 text-right">
+                  <button
+                    onClick={() => onTogglePort(iface.port, isErr ? true : !isUp)}
+                    className={`relative inline-flex h-5 w-9 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none ${
+                      isUp ? 'bg-emerald-500 hover:bg-emerald-600' : 'bg-slate-300 hover:bg-slate-400'
+                    }`}
+                    title={isUp ? 'Disable Port' : 'Enable Port'}
+                  >
+                    <span className={`pointer-events-none inline-block h-4 w-4 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out ${isUp ? 'translate-x-4' : 'translate-x-0'}`} />
+                  </button>
+                </td>
               </tr>
             )
           })}

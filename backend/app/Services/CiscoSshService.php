@@ -35,17 +35,28 @@ class CiscoSshService
     public function connect(string $username, string $password, string $enablePassword = ''): void
     {
         $this->ssh = new SSH2($this->host, $this->port, $this->timeout);
+        
+        // Workaround for older Cisco IOS devices (like Cisco-1.25) that have buggy
+        // implementations of rsa-sha2-256/512 or modern KEX, which causes them to
+        // silently corrupt the crypto state and reject keyboard-interactive auth.
+        $this->ssh->setPreferredAlgorithms([
+            'hostkey' => ['ssh-rsa', 'ssh-dss'],
+            'kex'     => ['diffie-hellman-group14-sha1', 'diffie-hellman-group1-sha1']
+        ]);
 
         if (!$this->ssh->login($username, $password)) {
             throw new \RuntimeException("SSH login failed for {$this->host}:{$this->port} as user '{$username}'.");
         }
 
+        // Consume the initial login banner and prompt
+        $this->ssh->read('/[>#]/', SSH2::READ_REGEX);
+
         // Disable terminal paging so full output is returned
         $this->ssh->write("terminal length 0\n");
-        $this->ssh->read('/[>#]/');
+        $prompt = $this->ssh->read('/[>#]/', SSH2::READ_REGEX);
 
-        // Enter privileged exec mode if enable password is provided
-        if (!empty($enablePassword)) {
+        // Enter privileged exec mode only if enable password is explicitly provided
+        if (!empty($enablePassword) && str_ends_with(trim($prompt), '>')) {
             $this->enable($enablePassword);
         }
     }
@@ -53,15 +64,22 @@ class CiscoSshService
     private function enable(string $enablePassword): void
     {
         $this->ssh->write("enable\n");
-        $output = $this->ssh->read('/Password:|[>#]/');
+        $out = $this->ssh->read('/([Pp]assword:|% Error|[>#])/i', SSH2::READ_REGEX);
+        
+        if (str_contains($out, '% Error')) {
+            throw new \RuntimeException("Failed to enter enable mode: The switch rejected the enable command (Authentication error). Please ensure an enable secret/password is configured on the Cisco switch.");
+        }
 
-        if (str_contains($output, 'Password:')) {
-            $this->ssh->write("{$enablePassword}\n");
-            $result = $this->ssh->read('/[>#]/');
+        if (stripos($out, 'assword') !== false) {
+            $this->ssh->write($enablePassword . "\n");
+            $out2 = $this->ssh->read('/([>#]|% Access denied|% Bad secrets)/', SSH2::READ_REGEX);
 
-            if (!str_contains($result, '#')) {
-                throw new \RuntimeException('Failed to enter enable mode — check enable password.');
+            if (str_contains($out2, '% Access denied') || str_contains($out2, '% Bad secrets') || !str_ends_with(trim($out2), '#')) {
+                throw new \RuntimeException('Failed to enter enable mode: Incorrect enable password.');
             }
+        } elseif (str_ends_with(trim($out), '>')) {
+            // It didn't ask for a password but returned to >
+            throw new \RuntimeException('Failed to enter enable mode. Device returned to user exec mode.');
         }
     }
 
@@ -335,18 +353,111 @@ class CiscoSshService
     private function exec(string $command): string
     {
         if (!$this->ssh) {
-            throw new \RuntimeException('SSH not connected. Call connect() first.');
+            throw new \RuntimeException('SSH connection not established.');
         }
 
         $this->ssh->write("{$command}\n");
-        // Read until we see a prompt (# for privileged, > for user mode)
-        $output = $this->ssh->read('/[>#]/');
+        $output = $this->ssh->read('/[>#]/', SSH2::READ_REGEX);
 
         // Strip the command echo and trailing prompt
         $lines = explode("\n", $output);
         // Remove first line (command echo) and last line (prompt)
         $lines = array_slice($lines, 1, -1);
-        return implode("\n", $lines);
+        $result = implode("\n", $lines);
+
+        // Check for common Cisco CLI errors
+        if (preg_match('/^\s*% /m', $result)) {
+            // Find the line that has the error
+            foreach ($lines as $line) {
+                if (str_starts_with(trim($line), '%')) {
+                    throw new \RuntimeException("Cisco CLI Error on command '{$command}': " . trim($line));
+                }
+            }
+            throw new \RuntimeException("Cisco CLI Error on command '{$command}': " . trim($result));
+        }
+
+        return $result;
+    }
+
+    // =========================================================================
+    // Fase 3b: Remote Configuration (Write Mode)
+    // =========================================================================
+
+    /**
+     * Assert that the SSH session is in Privileged EXEC mode (#).
+     * Throws a clear error if still in User EXEC mode (>).
+     */
+    private function requirePrivilegedMode(): void
+    {
+        $this->ssh->write("\n");
+        $out = $this->ssh->read('/[>#]/', SSH2::READ_REGEX);
+        if (!str_ends_with(trim($out), '#')) {
+            throw new \RuntimeException(
+                'Akses ditolak: SSH user tidak memiliki Privileged Mode (#). ' .
+                'Silakan set privilege 15 di switch: "username teknisi privilege 15 secret <pass>", ' .
+                'atau isi field Enable Password di credentials perangkat ini.'
+            );
+        }
+    }
+
+    public function executeTerminalCommand(string $command): string
+    {
+        return $this->exec($command);
+    }
+
+    public function setPortState(string $interfaceName, bool $enable): void
+    {
+        $this->requirePrivilegedMode();
+        $this->exec('configure terminal');
+        $this->exec("interface {$interfaceName}");
+        if ($enable) {
+            $this->exec('no shutdown');
+        } else {
+            $this->exec('shutdown');
+        }
+        $this->exec('end');
+    }
+
+    public function setPortMode(string $interfaceName, string $mode, ?int $vlanId = null): void
+    {
+        $this->requirePrivilegedMode();
+        $this->exec('configure terminal');
+        $this->exec("interface {$interfaceName}");
+        
+        if ($mode === 'trunk') {
+            // Some Cisco switches require encapsulation dot1q before mode trunk, we can try it.
+            // Ignore error if it fails (not all switches support it, like SG300).
+            try {
+                $this->exec('switchport trunk encapsulation dot1q');
+            } catch (\Exception $e) {}
+            
+            $this->exec('switchport mode trunk');
+            // Try to clear access vlan so it doesn't show old vlan when disconnected
+            $this->exec('no switchport access vlan');
+        } else {
+            $this->exec('switchport mode access');
+            if ($vlanId) {
+                $this->exec("switchport access vlan {$vlanId}");
+            }
+        }
+        $this->exec('end');
+    }
+
+    public function reboot(): void
+    {
+        // Cisco reboot command is 'reload'
+        // We write 'reload' and then might be prompted to save config or confirm.
+        $this->ssh->write("reload\n");
+        $output = $this->ssh->read('/(Save\? \[yes\/no\]|Proceed with reload\? \[confirm\])/i', SSH2::READ_REGEX);
+        
+        if (str_contains(strtolower($output), 'save?')) {
+            $this->ssh->write("no\n"); // Don't save modified config before reload to be safe
+            $this->ssh->read('/Proceed with reload\? \[confirm\]/i', SSH2::READ_REGEX);
+        }
+        
+        $this->ssh->write("\n"); // Confirm
+        
+        // We expect the connection to drop now.
     }
 
     // =========================================================================
@@ -388,34 +499,52 @@ class CiscoSshService
         $lines = explode("\n", $output);
         $inData = false;
 
+        $pos = [];
+
         foreach ($lines as $line) {
             $line = rtrim($line);
 
-            // Detect table header
+            // Detect table header and its column positions
             if (preg_match('/^Port\s+Name/', $line)) {
                 $inData = true;
+                $pos['Name']   = strpos($line, 'Name');
+                $pos['Status'] = strpos($line, 'Status');
+                $pos['Vlan']   = strpos($line, 'Vlan');
+                $pos['Duplex'] = strpos($line, 'Duplex');
+                $pos['Speed']  = strpos($line, 'Speed');
+                $pos['Type']   = strpos($line, 'Type');
                 continue;
             }
 
-            if (!$inData || trim($line) === '') {
+            if (!$inData || trim($line) === '' || empty($pos)) {
                 continue;
             }
 
-            // Port Name Status Vlan Duplex Speed Type
-            // Use fixed-width-aware regex (columns are space-delimited but name can have spaces)
-            if (preg_match(
-                '/^(\S+)\s+(.*?)\s{2,}(\w+)\s+(\S+)\s+(\S+)\s+(\S+)\s*(.*)$/',
-                $line,
-                $m
-            )) {
+            // Extract fixed-width columns
+            $port   = trim(substr($line, 0, $pos['Name']));
+            $name   = trim(substr($line, $pos['Name'], $pos['Status'] - $pos['Name']));
+            $status = trim(substr($line, $pos['Status'], $pos['Vlan'] - $pos['Status']));
+            $vlan   = trim(substr($line, $pos['Vlan'], $pos['Duplex'] - $pos['Vlan']));
+            $duplex = trim(substr($line, $pos['Duplex'], $pos['Speed'] - $pos['Duplex']));
+            
+            // Handle optional 'Type' column at the end
+            if ($pos['Type'] !== false && strlen($line) > $pos['Type']) {
+                $speed = trim(substr($line, $pos['Speed'], $pos['Type'] - $pos['Speed']));
+                $type  = trim(substr($line, $pos['Type']));
+            } else {
+                $speed = trim(substr($line, $pos['Speed']));
+                $type  = '';
+            }
+
+            if ($port !== '') {
                 $interfaces[] = [
-                    'port'   => $m[1],
-                    'name'   => trim($m[2]),
-                    'status' => $m[3],   // connected / notconnect / err-disabled
-                    'vlan'   => $m[4],   // vlan number or 'trunk' / 'routed'
-                    'duplex' => $m[5],
-                    'speed'  => $m[6],
-                    'type'   => trim($m[7]),
+                    'port'   => $port,
+                    'name'   => $name,
+                    'status' => $status,
+                    'vlan'   => $vlan,
+                    'duplex' => $duplex,
+                    'speed'  => $speed,
+                    'type'   => $type,
                 ];
             }
         }

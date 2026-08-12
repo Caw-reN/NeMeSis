@@ -3,8 +3,8 @@
  */
 export const formatLatency = (ms) => {
   if (ms === null || ms === undefined) return 'N/A'
-  if (ms < 1) return `${(ms * 1000).toFixed(0)}µs`
-  return `${ms.toFixed(2)}ms`
+  if (ms < 1) return '< 1ms'
+  return `${ms.toFixed(1)}ms`
 }
 
 /**

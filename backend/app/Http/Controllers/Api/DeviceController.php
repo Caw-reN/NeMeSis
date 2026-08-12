@@ -9,6 +9,9 @@ use App\Http\Resources\DeviceLogResource;
 use App\Http\Resources\DeviceResource;
 use App\Models\Device;
 use App\Models\DeviceLog;
+use App\Services\CiscoSshService;
+use App\Services\DeviceCredentialService;
+use App\Services\MikrotikService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\AnonymousResourceCollection;
@@ -128,5 +131,103 @@ class DeviceController extends Controller
             ->paginate($request->per_page ?? 50);
 
         return DeviceLogResource::collection($logs);
+    }
+
+    /**
+     * GET /api/devices/{device}/interfaces
+     *
+     * Fetch the real network interface list from the device.
+     * - Mikrotik: uses RouterOS API (/interface/print)
+     * - Cisco:    uses SSH (show interfaces status)
+     * - Generic:  returns common eth names as fallback
+     *
+     * Returns: [ { name, type, status, mac, running } ]
+     */
+    public function interfaces(Device $device, DeviceCredentialService $credService): JsonResponse
+    {
+        try {
+            $ifaces = match ($device->vendor) {
+                'mikrotik' => $this->getMikrotikInterfaces($device, $credService),
+                'cisco'    => $this->getCiscoInterfaces($device, $credService),
+                default    => $this->getGenericInterfaces($device),
+            };
+        } catch (\Throwable $e) {
+            // If we can't reach the device, return generic fallback
+            $ifaces = $this->getGenericInterfaces($device);
+        }
+
+        return response()->json(['interfaces' => $ifaces]);
+    }
+
+    private function getMikrotikInterfaces(Device $device, DeviceCredentialService $credService): array
+    {
+        $creds = $credService->getMikrotikCredentials($device);
+        if (!$creds) {
+            return $this->getGenericInterfaces($device);
+        }
+
+        $svc = new MikrotikService($device->ip_address, $creds['api_port']);
+        $svc->connect($creds['api_user'], $creds['api_pass']);
+
+        try {
+            $rows = $svc->getInterfaces();
+        } finally {
+            $svc->disconnect();
+        }
+
+        return array_map(fn ($r) => [
+            'name'    => $r['name']    ?? '',
+            'type'    => $r['type']    ?? 'ether',
+            'status'  => isset($r['running']) && $r['running'] === 'true' ? 'up' : 'down',
+            'mac'     => $r['mac-address'] ?? null,
+            'running' => ($r['running'] ?? 'false') === 'true',
+        ], array_filter($rows, fn ($r) => !empty($r['name'])));
+    }
+
+    private function getCiscoInterfaces(Device $device, DeviceCredentialService $credService): array
+    {
+        $creds = $credService->getCiscoCredentials($device);
+        if (!$creds) {
+            return $this->getGenericInterfaces($device);
+        }
+
+        $svc = new CiscoSshService($device->ip_address, $creds['ssh_port']);
+        $svc->connect($creds['ssh_user'], $creds['ssh_pass'], $creds['enable_pass']);
+
+        try {
+            $rows = $svc->getInterfaceStatus();
+        } finally {
+            $svc->disconnect();
+        }
+
+        return array_map(fn ($r) => [
+            'name'    => $r['port']   ?? $r['interface'] ?? '',
+            'type'    => 'ether',
+            'status'  => strtolower($r['status'] ?? '') === 'connected' ? 'up' : 'down',
+            'mac'     => null,
+            'running' => strtolower($r['status'] ?? '') === 'connected',
+        ], array_filter($rows, fn ($r) => !empty($r['port'] ?? $r['interface'] ?? '')));
+    }
+
+    /**
+     * Generic fallback: produce common interface names based on device type.
+     */
+    private function getGenericInterfaces(Device $device): array
+    {
+        $names = match ($device->type) {
+            'router'  => ['eth0', 'eth1', 'eth2', 'eth3', 'eth4', 'wan0', 'lo'],
+            'switch'  => ['eth0', 'eth1', 'eth2', 'eth3', 'eth4', 'eth5', 'eth6', 'eth7'],
+            'server'  => ['eth0', 'eth1', 'lo'],
+            'ap'      => ['eth0', 'wlan0', 'wlan1'],
+            default   => ['eth0', 'eth1', 'eth2'],
+        };
+
+        return array_map(fn ($n) => [
+            'name'    => $n,
+            'type'    => str_starts_with($n, 'wlan') ? 'wireless' : 'ether',
+            'status'  => 'unknown',
+            'mac'     => null,
+            'running' => null,
+        ], $names);
     }
 }

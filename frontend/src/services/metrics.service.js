@@ -16,7 +16,7 @@ export const metricsService = {
    * Returns: system_resources, interfaces, ip_addresses, dhcp_leases, routing_table.
    */
   getMikrotikMetrics: async (deviceId) => {
-    const { data } = await api.get(`/devices/${deviceId}/metrics/mikrotik`)
+    const { data } = await api.get(`/api/devices/${deviceId}/metrics/mikrotik`)
     return data
   },
 
@@ -25,7 +25,7 @@ export const metricsService = {
    * Returns: version, interface_status, interface_detail, vlan_brief, mac_address_table.
    */
   getCiscoMetrics: async (deviceId) => {
-    const { data } = await api.get(`/devices/${deviceId}/metrics/cisco`)
+    const { data } = await api.get(`/api/devices/${deviceId}/metrics/cisco`)
     return data
   },
 }

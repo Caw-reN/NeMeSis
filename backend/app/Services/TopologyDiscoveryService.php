@@ -185,6 +185,25 @@ class TopologyDiscoveryService
             // Try to match by IP first, then by hostname (case-insensitive, ignoring domain suffix)
             $targetDevice = $this->findDevice($allDevices, $ip, $hostname);
 
+            // Auto-discover new devices without credentials (like The Dude)
+            if (!$targetDevice && $ip) {
+                $targetDevice = Device::firstOrCreate(
+                    ['ip_address' => $ip],
+                    [
+                        'name'        => $hostname ?: $ip,
+                        'vendor'      => 'generic',
+                        'type'        => 'other',
+                        'status'      => 'unknown',
+                        'is_active'   => true,
+                        'description' => 'Auto-discovered via ' . strtoupper($neighbor['protocol'] ?? 'CDP/LLDP'),
+                    ]
+                );
+                
+                if (!$allDevices->contains('id', $targetDevice->id)) {
+                    $allDevices->push($targetDevice);
+                }
+            }
+
             $entry = [
                 'source_device'  => $sourceDevice->name,
                 'source_ip'      => $sourceDevice->ip_address,
