@@ -35,7 +35,7 @@ Thumbs.db
 # ========================
 /worker/bin/
 /worker/*.exe
-/worker/go.sum
+
 
 # ========================
 # Docker & Environment
