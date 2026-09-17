@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react'
 import { useParams, useNavigate, Link } from 'react-router-dom'
 import { motion, AnimatePresence } from 'framer-motion'
-import { ArrowLeft, Server, Clock, AlertCircle } from 'lucide-react'
+import { ArrowLeft, Server, Clock, AlertCircle, ExternalLink } from 'lucide-react'
 import StatusBadge      from '../components/ui/StatusBadge'
 import DeviceTypeIcon   from '../components/ui/DeviceTypeIcon'
 import MikrotikMetricsPanel from '../components/metrics/MikrotikMetricsPanel'
@@ -103,7 +103,19 @@ export default function DeviceDetailPage() {
               <h1 className="font-display font-bold text-slate-900 text-2xl">{device.name}</h1>
               <StatusBadge status={device.status} size="lg" />
             </div>
-            <p className="text-slate-500 font-mono text-sm mt-0.5">{device.ip_address || 'No IP'}</p>
+            {device.ip_address ? (
+              <a 
+                href={`http://${device.ip_address}`} 
+                target="_blank" 
+                rel="noopener noreferrer"
+                className="inline-flex items-center gap-1.5 text-indigo-600 hover:text-indigo-700 hover:underline font-mono text-sm mt-0.5 transition-colors w-fit"
+              >
+                {device.ip_address}
+                <ExternalLink size={12} className="opacity-70" />
+              </a>
+            ) : (
+              <p className="text-slate-500 font-mono text-sm mt-0.5">No IP</p>
+            )}
             <div className="flex flex-wrap gap-4 mt-3 text-sm text-slate-500">
               <Info label="Type"    value={typeLabel(device.type)} />
               <Info label="Vendor"  value={vendorLabel(device.vendor)} />

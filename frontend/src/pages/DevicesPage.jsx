@@ -198,7 +198,7 @@ export default function DevicesPage() {
           <button onClick={fetchDevices} className="flex items-center gap-2 text-sm font-medium text-slate-600 border border-slate-200 bg-white rounded-xl px-4 py-2 hover:bg-slate-50 transition shadow-sm">
             <RefreshCw size={14} className={loading ? 'animate-spin text-indigo-500' : ''} /> Refresh
           </button>
-          <button onClick={openAdd} className="flex items-center gap-2 text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700 rounded-xl px-4 py-2 transition shadow-sm shadow-indigo-200">
+          <button onClick={openAdd} className="flex items-center gap-2 text-sm font-medium text-white bg-zinc-900 hover:bg-zinc-800 rounded-xl px-4 py-2 transition shadow-sm shadow-zinc-200">
             <Plus size={16} /> Add Device
           </button>
         </div>

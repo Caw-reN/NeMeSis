@@ -16,14 +16,18 @@ class AuthController extends Controller
      */
     public function login(Request $request): JsonResponse
     {
-        $credentials = $request->validate([
-            'email'    => ['required', 'email'],
+        $request->validate([
             'password' => ['required', 'string'],
         ]);
 
+        $credentials = [
+            'email'    => 'admin@nms.local',
+            'password' => $request->password,
+        ];
+
         if (! Auth::attempt($credentials)) {
             throw ValidationException::withMessages([
-                'email' => ['Email atau password salah.'],
+                'password' => ['Password salah.'],
             ]);
         }
 

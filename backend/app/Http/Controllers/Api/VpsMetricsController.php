@@ -39,30 +39,30 @@ class VpsMetricsController extends Controller
 
         if (!$row) {
             return response()->json([
-                'error'  => 'No metrics available yet.',
-                'hint'   => 'Make sure the device has SNMP enabled and snmpd is running on the server. The worker polls every 60 seconds.',
+                'error' => 'No metrics available yet.',
+                'hint' => 'Make sure the device has SNMP enabled and snmpd is running on the server. The worker polls every 60 seconds.',
             ], 404);
         }
 
         // Parse JSON columns
         $diskPartitions = json_decode($row->disk_partitions, true) ?? [];
-        $netInterfaces  = json_decode($row->net_interfaces, true)  ?? [];
+        $netInterfaces = json_decode($row->net_interfaces, true) ?? [];
 
         // mem_free_kb  = available RAM (from hrStorage: total-used, or UCD-MIB memFree)
         // mem_cached_kb = Buffers+Cached from UCD-MIB, or 0 if hrStorage was used
         // used = total - free - cached
         $memUsedKB = $row->mem_total_kb - $row->mem_free_kb - $row->mem_cached_kb;
         $memUsedKB = max(0, $memUsedKB); // guard against edge cases
-        $memUsedPct   = $row->mem_total_kb > 0
+        $memUsedPct = $row->mem_total_kb > 0
             ? round(($memUsedKB / $row->mem_total_kb) * 100, 1)
             : 0;
-        $cpuUsedPct   = round(100 - ($row->cpu_idle ?? 0), 1);
+        $cpuUsedPct = round(100 - ($row->cpu_idle ?? 0), 1);
 
         // Format uptime
-        $uptimeSec   = (int) $row->uptime_sec;
-        $uptimeDays  = intdiv($uptimeSec, 86400);
+        $uptimeSec = (int) $row->uptime_sec;
+        $uptimeDays = intdiv($uptimeSec, 86400);
         $uptimeHours = intdiv($uptimeSec % 86400, 3600);
-        $uptimeMins  = intdiv($uptimeSec % 3600, 60);
+        $uptimeMins = intdiv($uptimeSec % 3600, 60);
 
         // Fetch 24-hour history
         $historyRaw = DB::table('vps_metrics')
@@ -74,7 +74,8 @@ class VpsMetricsController extends Controller
         $history = [];
         $count = $historyRaw->count();
         $step = ceil($count / 100); // Target ~100 data points for a clean chart
-        if ($step < 1) $step = 1;
+        if ($step < 1)
+            $step = 1;
 
         $prevTime = null;
         $prevNet = null;
@@ -82,7 +83,8 @@ class VpsMetricsController extends Controller
 
         foreach ($historyRaw as $i => $hRow) {
             // Keep the first point, the last point, and every Nth point
-            if ($i % $step !== 0 && $i !== $count - 1) continue;
+            if ($i % $step !== 0 && $i !== $count - 1)
+                continue;
 
             $formattedTime = \Carbon\Carbon::parse($hRow->polled_at, 'UTC')->setTimezone('Asia/Jakarta')->format('H:i');
 
@@ -95,7 +97,7 @@ class VpsMetricsController extends Controller
             $hMemUsedKB = $hRow->mem_total_kb - $hRow->mem_free_kb - $hRow->mem_cached_kb;
             $hMemUsedKB = max(0, $hMemUsedKB);
             $hMemUsedPct = $hRow->mem_total_kb > 0 ? round(($hMemUsedKB / $hRow->mem_total_kb) * 100, 1) : 0;
-            
+
             $currTime = strtotime($hRow->polled_at);
             $currNet = json_decode($hRow->net_interfaces, true) ?? [];
             $rxMbps = 0;
@@ -111,8 +113,10 @@ class VpsMetricsController extends Controller
                         if ($cIf['name'] === $pIf['name']) {
                             $rxd = $cIf['rx_bytes'] - $pIf['rx_bytes'];
                             $txd = $cIf['tx_bytes'] - $pIf['tx_bytes'];
-                            if ($rxd >= 0) $rxDiff += $rxd;
-                            if ($txd >= 0) $txDiff += $txd;
+                            if ($rxd >= 0)
+                                $rxDiff += $rxd;
+                            if ($txd >= 0)
+                                $txDiff += $txd;
                             break;
                         }
                     }
@@ -124,10 +128,10 @@ class VpsMetricsController extends Controller
             $history[] = [
                 'time' => $formattedTime,
                 'full_time' => $hRow->polled_at,
-                'cpu'  => round(100 - ($hRow->cpu_idle ?? 0), 1),
-                'ram'  => $hMemUsedPct,
-                'rx'   => $rxMbps,
-                'tx'   => $txMbps,
+                'cpu' => round(100 - ($hRow->cpu_idle ?? 0), 1),
+                'ram' => $hMemUsedPct,
+                'rx' => $rxMbps,
+                'tx' => $txMbps,
             ];
 
             $prevTime = $currTime;
@@ -135,58 +139,58 @@ class VpsMetricsController extends Controller
         }
 
         return response()->json([
-            'vendor'       => 'server',
-            'device_name'  => $device->name,
-            'ip_address'   => $device->ip_address,
+            'vendor' => 'server',
+            'device_name' => $device->name,
+            'ip_address' => $device->ip_address,
             'polled_at'    => \Carbon\Carbon::parse($row->polled_at, 'UTC')->setTimezone('Asia/Jakarta')->format('Y-m-d H:i:s'),
 
             'system' => [
-                'os_descr'    => $row->sys_descr,
-                'hostname'    => $row->sys_name,
-                'uptime_sec'  => $uptimeSec,
+                'os_descr' => $row->sys_descr,
+                'hostname' => $row->sys_name,
+                'uptime_sec' => $uptimeSec,
                 'uptime_human' => "{$uptimeDays}d {$uptimeHours}h {$uptimeMins}m",
             ],
 
             'cpu' => [
-                'user_pct'    => round($row->cpu_user,   1),
-                'system_pct'  => round($row->cpu_system, 1),
-                'idle_pct'    => round($row->cpu_idle,   1),
-                'used_pct'    => $cpuUsedPct,
+                'user_pct' => round($row->cpu_user, 1),
+                'system_pct' => round($row->cpu_system, 1),
+                'idle_pct' => round($row->cpu_idle, 1),
+                'used_pct' => $cpuUsedPct,
             ],
 
             'memory' => [
-                'total_kb'  => (int) $row->mem_total_kb,
-                'free_kb'   => (int) $row->mem_free_kb,
+                'total_kb' => (int) $row->mem_total_kb,
+                'free_kb' => (int) $row->mem_free_kb,
                 'cached_kb' => (int) $row->mem_cached_kb,
-                'used_kb'   => $memUsedKB,
-                'used_pct'  => $memUsedPct,
-                'total_mb'  => round($row->mem_total_kb / 1024, 0),
-                'used_mb'   => round($memUsedKB / 1024, 0),
+                'used_kb' => $memUsedKB,
+                'used_pct' => $memUsedPct,
+                'total_mb' => round($row->mem_total_kb / 1024, 0),
+                'used_mb' => round($memUsedKB / 1024, 0),
             ],
 
             // Aggregate all partitions into one total
             'disk' => (function () use ($diskPartitions) {
                 $totalKb = array_sum(array_column($diskPartitions, 'total_kb'));
-                $usedKb  = array_sum(array_column($diskPartitions, 'used_kb'));
-                $freeKb  = $totalKb - $usedKb;
+                $usedKb = array_sum(array_column($diskPartitions, 'used_kb'));
+                $freeKb = $totalKb - $usedKb;
                 $usedPct = $totalKb > 0 ? round(($usedKb / $totalKb) * 100, 1) : 0;
                 return [
-                    'total_gb'   => round($totalKb / 1024 / 1024, 2),
-                    'used_gb'    => round($usedKb  / 1024 / 1024, 2),
-                    'free_gb'    => round($freeKb   / 1024 / 1024, 2),
-                    'used_pct'   => $usedPct,
+                    'total_gb' => round($totalKb / 1024 / 1024, 2),
+                    'used_gb' => round($usedKb / 1024 / 1024, 2),
+                    'free_gb' => round($freeKb / 1024 / 1024, 2),
+                    'used_pct' => $usedPct,
                     'partitions' => count($diskPartitions),
                 ];
             })(),
 
             'network' => array_map(function ($iface) {
                 return [
-                    'name'        => $iface['name'],
-                    'rx_bytes'    => $iface['rx_bytes'],
-                    'tx_bytes'    => $iface['tx_bytes'],
-                    'rx_mb'       => round($iface['rx_bytes'] / 1024 / 1024, 2),
-                    'tx_mb'       => round($iface['tx_bytes'] / 1024 / 1024, 2),
-                    'speed_mbps'  => $iface['speed'],
+                    'name' => $iface['name'],
+                    'rx_bytes' => $iface['rx_bytes'],
+                    'tx_bytes' => $iface['tx_bytes'],
+                    'rx_mb' => round($iface['rx_bytes'] / 1024 / 1024, 2),
+                    'tx_mb' => round($iface['tx_bytes'] / 1024 / 1024, 2),
+                    'speed_mbps' => $iface['speed'],
                 ];
             }, $netInterfaces),
 

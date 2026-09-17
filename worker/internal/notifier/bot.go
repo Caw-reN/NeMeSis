@@ -46,7 +46,7 @@ func StartBotListener() {
 		}
 
 		url := fmt.Sprintf("https://api.telegram.org/bot%s/getUpdates?offset=%d&timeout=30", token, offset)
-		
+
 		req, err := http.NewRequest("GET", url, nil)
 		if err != nil {
 			logger.Errorf("Failed to create getUpdates request: %v", err)
@@ -82,7 +82,7 @@ func StartBotListener() {
 			// Ignore empty messages
 			text := strings.TrimSpace(update.Message.Text)
 			chatID := update.Message.Chat.ID
-			
+
 			if text == "" {
 				continue
 			}
@@ -123,7 +123,7 @@ func handlePerangkatCommand(token string, chatID int64) {
 		if d.CurrentStatus == "down" {
 			icon = "🚨"
 		}
-		
+
 		ip := d.IPAddress
 		if ip == "" {
 			ip = "No IP"

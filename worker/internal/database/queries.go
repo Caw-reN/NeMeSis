@@ -9,14 +9,14 @@ import (
 // DeviceRecord mirrors the relevant columns from the `devices` table
 // that the worker needs for scanning. It does NOT include credentials.
 type DeviceRecord struct {
-	ID             int64
-	Name           string
-	IPAddress      string
-	Vendor         string
-	CurrentStatus  string
-	SNMPEnabled    bool
-	SNMPCommunity  sql.NullString
-	SNMPVersion    string
+	ID            int64
+	Name          string
+	IPAddress     string
+	Vendor        string
+	CurrentStatus string
+	SNMPEnabled   bool
+	SNMPCommunity sql.NullString
+	SNMPVersion   string
 }
 
 // ScanResultRecord holds the result of a port scan to be upserted.

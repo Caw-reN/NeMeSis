@@ -8,17 +8,17 @@ import { toast }   from '../utils/toast'
 export default function LoginPage() {
   const { login }     = useAuth()
   const navigate      = useNavigate()
-  const [form, setForm]       = useState({ email: '', password: '' })
+  const [form, setForm]       = useState({ password: '' })
   const [showPwd, setShowPwd] = useState(false)
   const [loading, setLoading] = useState(false)
 
   const handleSubmit = async (e) => {
     e.preventDefault()
-    if (!form.email || !form.password) return
+    if (!form.password) return
 
     setLoading(true)
     try {
-      await login(form.email, form.password)
+      await login('admin@nms.local', form.password)
       toast.success('Welcome back! Redirecting...')
       navigate('/dashboard')
     } catch {
@@ -58,22 +58,6 @@ export default function LoginPage() {
           </div>
 
           <form onSubmit={handleSubmit} className="space-y-4">
-            {/* Email */}
-            <div>
-              <label htmlFor="email" className="block text-sm font-medium text-slate-700 mb-1.5">
-                Email
-              </label>
-              <input
-                id="email"
-                type="email"
-                autoComplete="email"
-                required
-                value={form.email}
-                onChange={e => setForm(f => ({ ...f, email: e.target.value }))}
-                placeholder="admin@nms.local"
-                className="w-full px-3.5 py-2.5 text-sm rounded-xl border border-slate-200 bg-slate-50 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-500/30 focus:border-indigo-400 transition"
-              />
-            </div>
 
             {/* Password */}
             <div>
