@@ -24,7 +24,7 @@ type Config struct {
 
 // DSN returns the MySQL Data Source Name string for go-sql-driver.
 func (c *Config) DSN() string {
-	return fmt.Sprintf("%s:%s@tcp(%s:%s)/%s?parseTime=true&timeout=5s",
+	return fmt.Sprintf("%s:%s@tcp(%s:%s)/%s?parseTime=true&loc=UTC&time_zone='%%2B00:00'&timeout=5s",
 		c.DBUser, c.DBPassword, c.DBHost, c.DBPort, c.DBName,
 	)
 }

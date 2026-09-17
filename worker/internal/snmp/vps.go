@@ -73,7 +73,7 @@ func PollVpsMetrics(device database.DeviceRecord) {
 
 	rec := database.VpsMetricsRecord{
 		DeviceID: device.ID,
-		PolledAt: time.Now(),
+		PolledAt: time.Now().UTC(),
 	}
 
 	// ── Scalar OIDs (CPU + RAM + sysInfo) ─────────────────────────────────────
