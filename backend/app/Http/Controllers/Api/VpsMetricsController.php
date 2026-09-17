@@ -78,10 +78,19 @@ class VpsMetricsController extends Controller
 
         $prevTime = null;
         $prevNet = null;
+        $lastFormattedTime = null;
 
         foreach ($historyRaw as $i => $hRow) {
             // Keep the first point, the last point, and every Nth point
             if ($i % $step !== 0 && $i !== $count - 1) continue;
+
+            $formattedTime = \Carbon\Carbon::parse($hRow->polled_at, 'UTC')->setTimezone('Asia/Jakarta')->format('H:i');
+
+            // Skip if we already have a data point for this exact minute (unless it's the very last point)
+            if ($formattedTime === $lastFormattedTime && $i !== $count - 1) {
+                continue;
+            }
+            $lastFormattedTime = $formattedTime;
 
             $hMemUsedKB = $hRow->mem_total_kb - $hRow->mem_free_kb - $hRow->mem_cached_kb;
             $hMemUsedKB = max(0, $hMemUsedKB);
@@ -113,7 +122,7 @@ class VpsMetricsController extends Controller
             }
 
             $history[] = [
-                'time' => date('H:i', $currTime),
+                'time' => $formattedTime,
                 'full_time' => $hRow->polled_at,
                 'cpu'  => round(100 - ($hRow->cpu_idle ?? 0), 1),
                 'ram'  => $hMemUsedPct,
@@ -129,7 +138,7 @@ class VpsMetricsController extends Controller
             'vendor'       => 'server',
             'device_name'  => $device->name,
             'ip_address'   => $device->ip_address,
-            'polled_at'    => $row->polled_at,
+            'polled_at'    => \Carbon\Carbon::parse($row->polled_at, 'UTC')->setTimezone('Asia/Jakarta')->format('Y-m-d H:i:s'),
 
             'system' => [
                 'os_descr'    => $row->sys_descr,

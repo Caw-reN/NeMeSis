@@ -121,13 +121,15 @@ func PollVpsMetrics(device database.DeviceRecord) {
 		}
 	}
 
-	// ── RAM override from HOST-RESOURCES-MIB (more reliable on VMs) ─────────────
-	if totalKB, usedKB, ok := pollRamFromHrStorage(g); ok && totalKB > 0 {
-		rec.MemTotalKB  = totalKB
-		rec.MemFreeKB   = totalKB - usedKB
-		rec.MemCachedKB = 0 // hrStorage already gives net used, no separate cached
-		logger.Infof("VPS %s: RAM from hrStorage — total=%dMB used=%dMB",
-			device.Name, totalKB/1024, usedKB/1024)
+	// ── RAM override from HOST-RESOURCES-MIB (fallback if UCD-SNMP-MIB fails) ─────────────
+	if rec.MemTotalKB == 0 {
+		if totalKB, usedKB, ok := pollRamFromHrStorage(g); ok && totalKB > 0 {
+			rec.MemTotalKB  = totalKB
+			rec.MemFreeKB   = totalKB - usedKB
+			rec.MemCachedKB = 0 // hrStorage already gives net used, no separate cached
+			logger.Infof("VPS %s: RAM from hrStorage fallback — total=%dMB used=%dMB",
+				device.Name, totalKB/1024, usedKB/1024)
+		}
 	}
 
 	// ── Disk — hrStorageTable walk ─────────────────────────────────────────────

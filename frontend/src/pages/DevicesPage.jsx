@@ -1,6 +1,6 @@
 import { useEffect, useState, useMemo } from 'react'
 import { motion }    from 'framer-motion'
-import { Plus, Pencil, Trash2, RefreshCw, ExternalLink, Server, Wifi, AlertCircle, Activity } from 'lucide-react'
+import { Plus, Pencil, Trash2, RefreshCw, ExternalLink, Server, Wifi, AlertCircle, Activity, Search } from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
 import DataTable     from '../components/ui/DataTable'
 import StatusBadge   from '../components/ui/StatusBadge'
@@ -19,6 +19,7 @@ export default function DevicesPage() {
   const [deleteTarget, setDeleteTarget] = useState(null)
   const [editTarget, setEditTarget]     = useState(null)
   const [activeTab, setActiveTab] = useState('all') // 'all', 'infrastructure', 'access_points'
+  const [search, setSearch] = useState('')
 
   const fetchDevices = () => {
     setLoading(true)
@@ -41,14 +42,25 @@ export default function DevicesPage() {
 
   // Filtered Data for table
   const filteredDevices = useMemo(() => {
+    let result = devices;
     if (activeTab === 'infrastructure') {
-      return devices.filter(d => d.device_role === 'infrastructure')
+      result = result.filter(d => d.device_role === 'infrastructure')
+    } else if (activeTab === 'access_points') {
+      result = result.filter(d => d.device_role === 'end_user' || d.type === 'ap')
     }
-    if (activeTab === 'access_points') {
-      return devices.filter(d => d.device_role === 'end_user' || d.type === 'ap')
+
+    if (search.trim()) {
+      const s = search.toLowerCase()
+      result = result.filter(d => 
+        (d.name && d.name.toLowerCase().includes(s)) ||
+        (d.ip_address && d.ip_address.toLowerCase().includes(s)) ||
+        (d.type && d.type.toLowerCase().includes(s)) ||
+        (d.vendor && d.vendor.toLowerCase().includes(s))
+      )
     }
-    return devices
-  }, [devices, activeTab])
+
+    return result
+  }, [devices, activeTab, search])
 
   // Group by type
   const groupedDevices = useMemo(() => {
@@ -228,36 +240,49 @@ export default function DevicesPage() {
       <div className="bg-white border border-slate-200 rounded-2xl shadow-sm overflow-hidden">
         
         {/* Tabs Header */}
-        <div className="flex items-center gap-1 border-b border-slate-100 p-2 bg-slate-50/50">
-          {TABS.map(tab => (
-            <button
-              key={tab.id}
-              onClick={() => setActiveTab(tab.id)}
-              className={`relative px-4 py-2 text-sm font-medium rounded-xl transition-colors ${
-                activeTab === tab.id ? 'text-indigo-700' : 'text-slate-500 hover:text-slate-800 hover:bg-slate-100'
-              }`}
-            >
-              {activeTab === tab.id && (
-                <motion.div
-                  layoutId="activeTabIndicator"
-                  className="absolute inset-0 bg-white rounded-xl shadow-sm border border-slate-200/60"
-                  transition={{ type: "spring", bounce: 0.2, duration: 0.6 }}
-                />
-              )}
-              <span className="relative z-10 flex items-center gap-2">
-                {tab.label}
-                <span className={`px-1.5 py-0.5 rounded-md text-[10px] font-bold ${
-                  activeTab === tab.id ? 'bg-indigo-100 text-indigo-700' : 'bg-slate-200 text-slate-600'
-                }`}>
-                  {loading ? (
-                    <span className={`block w-4 h-3.5 rounded-sm animate-pulse ${
-                      activeTab === tab.id ? 'bg-indigo-300/50' : 'bg-slate-300/60'
-                    }`} />
-                  ) : tab.count}
+        <div className="flex items-center justify-between border-b border-slate-100 p-2 bg-slate-50/50">
+          <div className="flex items-center gap-1">
+            {TABS.map(tab => (
+              <button
+                key={tab.id}
+                onClick={() => setActiveTab(tab.id)}
+                className={`relative px-4 py-2 text-sm font-medium rounded-xl transition-colors ${
+                  activeTab === tab.id ? 'text-indigo-700' : 'text-slate-500 hover:text-slate-800 hover:bg-slate-100'
+                }`}
+              >
+                {activeTab === tab.id && (
+                  <motion.div
+                    layoutId="activeTabIndicator"
+                    className="absolute inset-0 bg-white rounded-xl shadow-sm border border-slate-200/60"
+                    transition={{ type: "spring", bounce: 0.2, duration: 0.6 }}
+                  />
+                )}
+                <span className="relative z-10 flex items-center gap-2">
+                  {tab.label}
+                  <span className={`px-1.5 py-0.5 rounded-md text-[10px] font-bold ${
+                    activeTab === tab.id ? 'bg-indigo-100 text-indigo-700' : 'bg-slate-200 text-slate-600'
+                  }`}>
+                    {loading ? (
+                      <span className={`block w-4 h-3.5 rounded-sm animate-pulse ${
+                        activeTab === tab.id ? 'bg-indigo-300/50' : 'bg-slate-300/60'
+                      }`} />
+                    ) : tab.count}
+                  </span>
                 </span>
-              </span>
-            </button>
-          ))}
+              </button>
+            ))}
+          </div>
+
+          <div className="relative w-64 mr-2">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
+            <input 
+              type="text" 
+              placeholder="Search all devices..." 
+              className="w-full pl-9 pr-4 py-2 text-sm bg-white border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all shadow-sm"
+              value={search}
+              onChange={e => setSearch(e.target.value)}
+            />
+          </div>
         </div>
 
         {/* Table Content - Grouped by Type */}
@@ -296,9 +321,9 @@ export default function DevicesPage() {
                   columns={columns}
                   data={devicesInGroup}
                   loading={false}
+                  searchable={false}
                   disablePagination={true}
                   maxHeight="340px"
-                  searchPlaceholder={`Search ${typeLabel(type).toLowerCase()}...`}
                   onRowClick={(row) => navigate(`/devices/${row.id}`)}
                 />
               </div>

@@ -157,7 +157,7 @@ export default function VpsMetricsPanel({ deviceId, deviceName }) {
 
   useEffect(() => {
     fetchMetrics()
-    const interval = setInterval(() => fetchMetrics(true), 10_000) // auto-refresh every 10s
+    const interval = setInterval(() => fetchMetrics(true), 2_000) // auto-refresh every 2s
     return () => clearInterval(interval)
   }, [fetchMetrics])
 
