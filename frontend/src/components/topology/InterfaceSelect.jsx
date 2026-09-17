@@ -1,12 +1,13 @@
 import { useEffect, useState } from 'react'
 import { devicesService } from '../../services/devices.service'
+import CustomSelect from '../ui/CustomSelect'
 
 /**
  * InterfaceSelect
  * Fetches real network interfaces (ether1, Gi0/1, etc.) for a device and shows
  * them as a dropdown. Falls back to a text input if not reachable.
  */
-export default function InterfaceSelect({ deviceId, value, onChange, placeholder, size = 'md' }) {
+export default function InterfaceSelect({ deviceId, value, onChange, placeholder, size = 'md', placement = 'bottom' }) {
   const [ifaces, setIfaces]   = useState(null)   // null = loading
   const [loading, setLoading] = useState(true)
 
@@ -44,21 +45,21 @@ export default function InterfaceSelect({ deviceId, value, onChange, placeholder
     )
   }
 
+  const options = [
+    ...ifaces.map(iface => ({
+      label: `${iface.running === true ? '↑' : iface.running === false ? '↓' : '–'} ${iface.name}${iface.type && iface.type !== 'ether' ? ` (${iface.type})` : ''}`,
+      value: iface.name
+    })),
+    { label: '✏️ Custom…', value: '__custom__' }
+  ]
+
   return (
-    <select
+    <CustomSelect
       value={value}
-      onChange={e => onChange(e.target.value)}
-      className={selectClass + ' cursor-pointer'}
-    >
-      <option value="">— Select interface —</option>
-      {ifaces.map(iface => (
-        <option key={iface.name} value={iface.name}>
-          {iface.running === true ? '↑' : iface.running === false ? '↓' : '–'}{' '}
-          {iface.name}
-          {iface.type && iface.type !== 'ether' ? ` (${iface.type})` : ''}
-        </option>
-      ))}
-      <option value="__custom__">✏️ Custom…</option>
-    </select>
+      onChange={onChange}
+      options={options}
+      placeholder={placeholder || "Select..."}
+      placement={placement}
+    />
   )
 }

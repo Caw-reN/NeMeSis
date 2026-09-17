@@ -35,13 +35,20 @@ class CiscoSshService
     public function connect(string $username, string $password, string $enablePassword = ''): void
     {
         $this->ssh = new SSH2($this->host, $this->port, $this->timeout);
+        $this->ssh->setTimeout($this->timeout); // Ensure read operations also timeout quickly
         
         // Workaround for older Cisco IOS devices (like Cisco-1.25) that have buggy
         // implementations of rsa-sha2-256/512 or modern KEX, which causes them to
         // silently corrupt the crypto state and reject keyboard-interactive auth.
         $this->ssh->setPreferredAlgorithms([
+            'kex'     => ['diffie-hellman-group1-sha1', 'diffie-hellman-group14-sha1'],
             'hostkey' => ['ssh-rsa', 'ssh-dss'],
-            'kex'     => ['diffie-hellman-group14-sha1', 'diffie-hellman-group1-sha1']
+            'client_to_server' => [
+                'crypt' => ['aes128-ctr', 'aes192-ctr', 'aes256-ctr']
+            ],
+            'server_to_client' => [
+                'crypt' => ['aes128-ctr', 'aes192-ctr', 'aes256-ctr']
+            ]
         ]);
 
         if (!$this->ssh->login($username, $password)) {
@@ -356,8 +363,15 @@ class CiscoSshService
             throw new \RuntimeException('SSH connection not established.');
         }
 
+        // Ensure the timeout applies to EVERY read operation, not just the connection.
+        $this->ssh->setTimeout($this->timeout);
+
         $this->ssh->write("{$command}\n");
         $output = $this->ssh->read('/[>#]/', SSH2::READ_REGEX);
+
+        if ($output === false) {
+            throw new \RuntimeException("Timeout reading output of '{$command}' from {$this->host}.");
+        }
 
         // Strip the command echo and trailing prompt
         $lines = explode("\n", $output);
@@ -441,6 +455,94 @@ class CiscoSshService
             }
         }
         $this->exec('end');
+    }
+
+    public function setPortName(string $interfaceName, string $name): void
+    {
+        $this->requirePrivilegedMode();
+        $this->exec('configure terminal');
+        $this->exec("interface {$interfaceName}");
+        
+        if ($name === '') {
+            $this->exec('no description');
+        } else {
+            $this->exec("description {$name}");
+        }
+        $this->exec('end');
+    }
+
+    public function updatePortConfig(string $interfaceName, string $mode, ?int $vlanId, ?string $name): void
+    {
+        $this->requirePrivilegedMode();
+        $this->exec('configure terminal');
+        $this->exec("interface {$interfaceName}");
+        
+        // Mode & VLAN
+        if ($mode === 'trunk') {
+            try {
+                $this->exec('switchport trunk encapsulation dot1q');
+            } catch (\Exception $e) {}
+            
+            $this->exec('switchport mode trunk');
+            $this->exec('no switchport access vlan');
+        } else {
+            $this->exec('switchport mode access');
+            if ($vlanId) {
+                $this->exec("switchport access vlan {$vlanId}");
+            }
+        }
+
+        // Name / Description
+        if ($name !== null) {
+            if ($name === '') {
+                $this->exec('no description');
+            } else {
+                $this->exec("description {$name}");
+            }
+        }
+
+        $this->exec('end');
+    }
+
+    /**
+     * Create a new VLAN on the switch.
+     *
+     * Cisco IOS commands:
+     *   conf t
+     *   vlan {id}
+     *   name {name}
+     *   end
+     *   write memory
+     */
+    public function createVlan(int $vlanId, string $name = ''): void
+    {
+        $this->requirePrivilegedMode();
+        $this->exec('configure terminal');
+        $this->exec("vlan {$vlanId}");
+        if ($name !== '') {
+            $this->exec("name {$name}");
+        }
+        $this->exec('end');
+        // Save to startup-config so the VLAN persists after reboot
+        $this->exec('write memory');
+    }
+
+    /**
+     * Delete a VLAN from the switch.
+     *
+     * Cisco IOS commands:
+     *   conf t
+     *   no vlan {id}
+     *   end
+     *   write memory
+     */
+    public function deleteVlan(int $vlanId): void
+    {
+        $this->requirePrivilegedMode();
+        $this->exec('configure terminal');
+        $this->exec("no vlan {$vlanId}");
+        $this->exec('end');
+        $this->exec('write memory');
     }
 
     public function reboot(): void

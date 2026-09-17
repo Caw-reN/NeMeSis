@@ -20,18 +20,23 @@ export const unregisterToastHandler = () => {
   _handler = null
 }
 
-const dispatch = (type, message) => {
+const dispatch = (type, message, opts = {}) => {
   if (_handler) {
-    _handler({ type, message, id: Date.now() + Math.random() })
+    const id = opts.id ?? (Date.now() + Math.random())
+    _handler({ type, message, id })
+    return id
   } else {
-    // Fallback: console log if no React handler yet
     console[type === 'error' ? 'error' : 'log'](`[Toast ${type}]`, message)
+    return null
   }
 }
 
 export const toast = {
-  success: (message) => dispatch('success', message),
-  error:   (message) => dispatch('error',   message),
-  warning: (message) => dispatch('warning', message),
-  info:    (message) => dispatch('info',    message),
+  success: (message, opts)  => dispatch('success', message, opts),
+  error:   (message, opts)  => dispatch('error',   message, opts),
+  warning: (message, opts)  => dispatch('warning', message, opts),
+  info:    (message, opts)  => dispatch('info',    message, opts),
+  // loading() returns an id that can be passed to success/error as { id } to replace it
+  loading: (message, opts)  => dispatch('loading', message, opts),
+  dismiss: (id)             => { if (_handler) _handler({ type: 'dismiss', id }) },
 }

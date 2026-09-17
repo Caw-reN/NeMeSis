@@ -19,7 +19,7 @@ class TopologyController extends Controller
      */
     public function index(): JsonResponse
     {
-        $devices = Device::active()->get();
+        $devices = Device::active()->with('deviceType')->get();
         $links   = TopologyLink::with(['sourceDevice', 'targetDevice'])
             ->where('is_active', true)
             ->get();
@@ -39,9 +39,16 @@ class TopologyController extends Controller
             ],
         ]);
 
+        $shapes = \App\Models\TopologyShape::all();
+
+        $positionsSetting = \App\Models\Setting::where('key', 'topology_positions')->first();
+        $positions = $positionsSetting ? json_decode($positionsSetting->value, true) : null;
+
         return response()->json([
-            'nodes' => $nodes,
-            'edges' => $edges,
+            'nodes'     => $nodes,
+            'edges'     => $edges,
+            'shapes'    => $shapes,
+            'positions' => $positions,
         ]);
     }
 
@@ -61,13 +68,27 @@ class TopologyController extends Controller
             'target_interface'  => ['nullable', 'string', 'max:50'],
         ]);
 
-        $link = TopologyLink::firstOrCreate(
-            [
-                'source_device_id' => $data['source_device_id'],
-                'target_device_id' => $data['target_device_id'],
-            ],
-            $data
-        );
+        // Check if a link already exists in either direction
+        $link = TopologyLink::where(function ($query) use ($data) {
+            $query->where('source_device_id', $data['source_device_id'])
+                  ->where('target_device_id', $data['target_device_id']);
+        })->orWhere(function ($query) use ($data) {
+            $query->where('source_device_id', $data['target_device_id'])
+                  ->where('target_device_id', $data['source_device_id']);
+        })->first();
+
+        if ($link) {
+            // If it exists in reverse, we do NOT flip the data source/target,
+            // we just update the cable properties. The direction doesn't strictly matter for physical cables.
+            $link->update([
+                'link_type'  => $data['link_type'] ?? $link->link_type,
+                'cable_type' => $data['cable_type'] ?? $link->cable_type,
+                'label'      => $data['label'] ?? $link->label,
+                'is_active'  => true,
+            ]);
+        } else {
+            $link = TopologyLink::create($data);
+        }
 
         return response()->json([
             'id'   => $link->id,
@@ -130,10 +151,16 @@ class TopologyController extends Controller
      */
     public function discover(Request $request, TopologyDiscoveryService $discoveryService): JsonResponse
     {
-        $deviceId = $request->integer('device_id') ?: null;
+        $deviceId   = $request->integer('device_id') ?: null;
+        $ipRanges   = $request->input('ip_ranges', []);
+        $filterType = $request->input('filter_type', ''); // e.g. 'ap'
+        
+        // Normalize: remove empty entries
+        $ipRanges = array_values(array_filter(array_map('trim', (array)$ipRanges)));
+        $filterType = in_array($filterType, ['ap']) ? $filterType : '';
 
         try {
-            $summary = $discoveryService->run($deviceId);
+            $summary = $discoveryService->run($deviceId, $ipRanges, $filterType);
         } catch (\Throwable $e) {
             return response()->json([
                 'error'   => 'Auto-discovery failed unexpectedly.',
@@ -142,9 +169,7 @@ class TopologyController extends Controller
         }
 
         // Log audit entry for the action
-        DeviceLog::system(
-            null,
-            'discovery',
+        \Illuminate\Support\Facades\Log::info(
             "Auto-Discovery selesai: {$summary['scanned']} device dipindai, " .
             "{$summary['links_created']} link baru, {$summary['links_updated']} link diperbarui, " .
             "{$summary['errors']} error.",
@@ -155,5 +180,70 @@ class TopologyController extends Controller
             'message' => 'Auto-Discovery berhasil dijalankan.',
             'summary' => $summary,
         ]);
+    }
+
+    /**
+     * POST /api/topology/shapes
+     */
+    public function storeShape(Request $request): JsonResponse
+    {
+        $data = $request->validate([
+            'type'         => 'required|in:rect,ellipse,text',
+            'x'            => 'required|integer',
+            'y'            => 'required|integer',
+            'width'        => 'required|integer',
+            'height'       => 'required|integer',
+            'fill_color'   => 'nullable|string',
+            'border_color' => 'nullable|string',
+            'text_content' => 'nullable|string',
+        ]);
+
+        $shape = \App\Models\TopologyShape::create($data);
+        return response()->json($shape, 201);
+    }
+
+    /**
+     * PUT /api/topology/shapes/{shape}
+     */
+    public function updateShape(Request $request, \App\Models\TopologyShape $shape): JsonResponse
+    {
+        $data = $request->validate([
+            'x'            => 'sometimes|integer',
+            'y'            => 'sometimes|integer',
+            'width'        => 'sometimes|integer',
+            'height'       => 'sometimes|integer',
+            'fill_color'   => 'nullable|string',
+            'border_color' => 'nullable|string',
+            'text_content' => 'nullable|string',
+        ]);
+
+        $shape->update($data);
+        return response()->json($shape);
+    }
+
+    /**
+     * DELETE /api/topology/shapes/{shape}
+     */
+    public function destroyShape(\App\Models\TopologyShape $shape): JsonResponse
+    {
+        $shape->delete();
+        return response()->json(['message' => 'Shape deleted.']);
+    }
+
+    /**
+     * POST /api/topology/positions
+     */
+    public function savePositions(Request $request): JsonResponse
+    {
+        $request->validate([
+            'positions' => ['required', 'array'],
+        ]);
+
+        \App\Models\Setting::updateOrCreate(
+            ['key' => 'topology_positions'],
+            ['value' => json_encode($request->input('positions'))]
+        );
+
+        return response()->json(['message' => 'Posisi topologi berhasil disimpan.']);
     }
 }

@@ -40,37 +40,41 @@ export default function DashboardPage() {
           <StatCard
             index={0}
             label="Total Devices"
-            value={loading ? '…' : s?.total_devices ?? 0}
+            value={s?.total_devices ?? 0}
             icon={<Monitor size={22} />}
             accent="bg-indigo-50"
             iconColor="text-indigo-500"
+            loading={loading}
           />
           <StatCard
             index={1}
             label="Devices UP"
-            value={loading ? '…' : s?.up_devices ?? 0}
+            value={s?.up_devices ?? 0}
             icon={<CheckCircle2 size={22} />}
             accent="bg-emerald-50"
             iconColor="text-emerald-500"
             sub="Reachable & responding"
+            loading={loading}
           />
           <StatCard
             index={2}
             label="Devices DOWN"
-            value={loading ? '…' : s?.down_devices ?? 0}
+            value={s?.down_devices ?? 0}
             icon={<XCircle size={22} />}
             accent="bg-rose-50"
             iconColor="text-rose-500"
             sub="No ICMP response"
+            loading={loading}
           />
           <StatCard
             index={3}
             label="Uptime"
-            value={loading ? '…' : `${s?.uptime_percent ?? 0}%`}
+            value={`${s?.uptime_percent ?? 0}%`}
             icon={<TrendingUp size={22} />}
             accent="bg-amber-50"
             iconColor="text-amber-500"
             sub={s?.unknown_devices ? `${s.unknown_devices} unknown` : undefined}
+            loading={loading}
           />
         </div>
       </section>
@@ -99,7 +103,7 @@ export default function DashboardPage() {
           ) : (data?.recent_alerts?.length ?? 0) === 0 ? (
             <div className="flex flex-col items-center justify-center py-8 text-slate-400">
               <CheckCircle2 size={32} className="mb-2 text-emerald-400" />
-              <p className="text-sm font-medium">All clear — no alerts in the last 24 hours.</p>
+              <p className="text-sm font-medium">All clear - no alerts in the last 24 hours.</p>
             </div>
           ) : (
             <ul className="space-y-2">
@@ -136,7 +140,7 @@ export default function DashboardPage() {
               { label: 'Last Scan',          value: s?.last_scan_at ? timeAgo(s.last_scan_at) : 'Never' },
               { label: 'SNMP Devices',        value: loading ? '…' : s?.snmp_devices ?? 0 },
               { label: 'Unknown Devices',     value: loading ? '…' : s?.unknown_devices ?? 0 },
-              { label: 'Scanner',             value: 'Go Worker — Active' },
+              { label: 'Scanner',             value: 'Go Worker - Active' },
             ].map(row => (
               <div key={row.label} className="flex items-center justify-between py-2 border-b border-slate-50 last:border-0">
                 <span className="text-sm text-slate-500">{row.label}</span>

@@ -15,15 +15,20 @@ class StoreDeviceRequest extends FormRequest
     {
         return [
             'name'            => ['required', 'string', 'max:100'],
-            'ip_address'      => ['required', 'ip', 'unique:devices,ip_address'],
-            'type'            => ['required', 'in:router,switch,server,ap,firewall,other'],
-            'vendor'          => ['required', 'in:mikrotik,cisco,generic'],
+            'ip_address'      => ['nullable', 'ip', 'unique:devices,ip_address'],
+            'type'            => ['required', 'string', 'exists:device_types,name'],
+            'device_role'     => ['required', 'string', 'in:infrastructure,end_user'],
+            'vendor'          => ['required', 'in:mikrotik,cisco,generic,server'],
             'snmp_enabled'    => ['boolean'],
             'snmp_community'  => ['nullable', 'string', 'max:100', 'required_if:snmp_enabled,true'],
             'snmp_version'    => ['in:v1,v2c,v3'],
             'location'        => ['nullable', 'string', 'max:150'],
             'description'     => ['nullable', 'string', 'max:500'],
             'is_active'       => ['boolean'],
+            'area_id'         => ['nullable', 'exists:areas,id'],
+            'map_x'           => ['nullable', 'numeric'],
+            'map_y'           => ['nullable', 'numeric'],
+            'icon_file'       => ['nullable', 'image', 'mimes:svg,png,jpg,jpeg', 'max:2048'],
             // Credential fields — stored encrypted as a nested JSON blob.
             // Structure: { mikrotik: { api_user, api_pass, api_port }, cisco: { ssh_user, ssh_pass, enable_pass, ssh_port } }
             'credentials'                    => ['nullable', 'array'],

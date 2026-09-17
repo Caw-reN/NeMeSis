@@ -13,11 +13,13 @@
     "@radix-ui/react-dropdown-menu": "^2.1.5",
     "@radix-ui/react-tooltip": "^1.1.7",
     "axios": "^1.7.9",
+    "fabric": "^7.4.0",
     "framer-motion": "^11.18.2",
     "lucide-react": "^0.469.0",
     "react": "^19.0.0",
     "react-dom": "^19.0.0",
     "react-router-dom": "^7.1.5",
+    "recharts": "^3.10.1",
     "vis-network": "^9.1.9"
   },
   "devDependencies": {

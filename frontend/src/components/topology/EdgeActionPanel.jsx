@@ -27,23 +27,23 @@ function getInitialCableType(edge) {
 }
 
 /**
- * EdgeActionPanel — slides in from the bottom-right when an edge is selected.
+ * EdgeActionPanel - slides in from the bottom-right when an edge is selected.
  * Provides Edit and Delete actions for topology links.
  *
  * Props:
- *   edge      — edge object { id, from, to, label, type, data }
- *   position  — { x, y } click coordinates from Vis.js pointer.DOM
- *   nodes     — full node list for resolving device names
- *   onSave    — async (edgeId, { link_type, label, source_interface, target_interface }) => void
- *   onDelete  — async (edgeId) => void
- *   onClose   — callback to close the panel
+ *   edge      - edge object { id, from, to, label, type, data }
+ *   position  - { x, y } click coordinates from Vis.js pointer.DOM
+ *   nodes     - full node list for resolving device names
+ *   onSave    - async (edgeId, { link_type, label, source_interface, target_interface }) => void
+ *   onDelete  - async (edgeId) => void
+ *   onClose   - callback to close the panel
  */
 export default function EdgeActionPanel({ edge, nodes, position, onSave, onDelete, onClose }) {
   const [editing, setEditing]   = useState(false)
   const [deleting, setDeleting] = useState(false)
   const [saving, setSaving]     = useState(false)
 
-  // Edit form state — initialized from the edge when edit mode opens
+  // Edit form state - initialized from the edge when edit mode opens
   const [cableType, setCableType]         = useState(() => getInitialCableType(edge))
   const [label, setLabel]                 = useState(edge?.label ?? '')
   const [sourceIface, setSourceIface]     = useState(edge?.data?.source_interface ?? '')
@@ -123,7 +123,7 @@ export default function EdgeActionPanel({ edge, nodes, position, onSave, onDelet
           animate={{ scale: 1,   opacity: 1 }}
           exit={{    scale: 0.9, opacity: 0 }}
           transition={{ duration: 0.15, ease: 'easeOut' }}
-          className={`absolute z-20 w-72 max-h-[calc(100vh-140px)] bg-white/95 backdrop-blur-md rounded-3xl border border-slate-200 shadow-2xl overflow-y-auto ${
+          className={`absolute z-20 w-72 max-h-[calc(100vh-140px)] bg-white/95 backdrop-blur-md rounded-3xl border border-slate-200 shadow-2xl overflow-visible ${
             !position ? 'bottom-24 right-4 lg:right-6' : ''
           }`}
           style={modalStyle}
@@ -140,7 +140,7 @@ export default function EdgeActionPanel({ edge, nodes, position, onSave, onDelet
                 </p>
                 <p className="text-[10px] text-slate-400 truncate">
                   {edge.label || edge.type || 'Link'}
-                  {edge.data?.source_interface && ` · ${edge.data.source_interface}`}
+                  {edge.data?.source_interface && ` � ${edge.data.source_interface}`}
                 </p>
               </div>
             </div>
@@ -160,7 +160,7 @@ export default function EdgeActionPanel({ edge, nodes, position, onSave, onDelet
                 animate={{ height: 'auto', opacity: 1 }}
                 exit={{ height: 0, opacity: 0 }}
                 transition={{ duration: 0.2 }}
-                className="overflow-hidden"
+                className="overflow-visible"
               >
                 <div className="px-4 py-3 space-y-3 border-b border-slate-100">
                   {/* Cable Type */}

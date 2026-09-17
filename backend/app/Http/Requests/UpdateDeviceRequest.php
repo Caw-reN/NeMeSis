@@ -18,15 +18,20 @@ class UpdateDeviceRequest extends FormRequest
 
         return [
             'name'            => ['sometimes', 'string', 'max:100'],
-            'ip_address'      => ['sometimes', 'ip', Rule::unique('devices', 'ip_address')->ignore($deviceId)],
-            'type'            => ['sometimes', 'in:router,switch,server,ap,firewall,other'],
-            'vendor'          => ['sometimes', 'in:mikrotik,cisco,generic'],
+            'ip_address'      => ['nullable', 'ip', Rule::unique('devices', 'ip_address')->ignore($deviceId->id)],
+            'type'          => ['sometimes', 'string', 'exists:device_types,name'],
+            'device_role'     => ['sometimes', 'string', 'in:infrastructure,end_user'],
+            'vendor'          => ['sometimes', 'in:mikrotik,cisco,generic,server'],
             'snmp_enabled'    => ['boolean'],
             'snmp_community'  => ['nullable', 'string', 'max:100'],
             'snmp_version'    => ['in:v1,v2c,v3'],
             'location'        => ['nullable', 'string', 'max:150'],
             'description'     => ['nullable', 'string', 'max:500'],
             'is_active'       => ['boolean'],
+            'area_id'         => ['nullable', 'exists:areas,id'],
+            'map_x'           => ['nullable', 'numeric'],
+            'map_y'           => ['nullable', 'numeric'],
+            'icon_file'       => ['nullable', 'image', 'mimes:svg,png,jpg,jpeg', 'max:2048'],
             // Credential fields — same structure as StoreDeviceRequest
             'credentials'                    => ['nullable', 'array'],
             'credentials.mikrotik'           => ['nullable', 'array'],

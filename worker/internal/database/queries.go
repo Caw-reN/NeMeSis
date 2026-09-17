@@ -34,7 +34,7 @@ func GetActiveDevices() ([]DeviceRecord, error) {
 	query := `
 		SELECT id, name, ip_address, vendor, status, snmp_enabled, snmp_community, snmp_version
 		FROM devices
-		WHERE is_active = 1
+		WHERE is_active = 1 AND ip_address IS NOT NULL
 	`
 	rows, err := DB.Query(query)
 	if err != nil {

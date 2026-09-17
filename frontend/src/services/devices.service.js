@@ -7,5 +7,6 @@ export const devicesService = {
   create:         (data)        => api.post('/api/devices', data).then(r => r.data),
   update:         (id, data)    => api.put(`/api/devices/${id}`, data).then(r => r.data),
   remove:         (id)          => api.delete(`/api/devices/${id}`).then(r => r.data),
+  removeBulk:     (ids)         => api.delete('/api/devices/bulk', { data: { ids } }).then(r => r.data),
   getLogs:        (id, params)  => api.get(`/api/devices/${id}/logs`, { params }).then(r => r.data),
 }

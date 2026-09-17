@@ -2,7 +2,7 @@ import { useState, useRef, useEffect } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { ChevronDown, Check } from 'lucide-react'
 
-export default function CustomSelect({ value, onChange, options = [], placeholder = 'Select...', disabled = false }) {
+export default function CustomSelect({ value, onChange, options = [], placeholder = 'Select...', disabled = false, placement = 'bottom' }) {
   const [isOpen, setIsOpen] = useState(false)
   const containerRef = useRef(null)
 
@@ -30,11 +30,11 @@ export default function CustomSelect({ value, onChange, options = [], placeholde
           ${isOpen ? 'border-indigo-500 ring-2 ring-indigo-500/20' : 'border-slate-300'}
         `}
       >
-        <span className={selectedOption ? 'text-slate-800' : 'text-slate-400'}>
+        <span className={`truncate text-left flex-1 mr-2 ${selectedOption ? 'text-slate-800' : 'text-slate-400'}`}>
           {selectedOption ? selectedOption.label : placeholder}
         </span>
         <ChevronDown 
-          className={`shrink-0 text-slate-400 transition-transform duration-300 ${isOpen ? 'rotate-180' : ''}`} 
+          className={`shrink-0 text-slate-400 transition-transform duration-300 ${isOpen ? (placement === 'top' ? '' : 'rotate-180') : (placement === 'top' ? 'rotate-180' : '')}`} 
           size={16} 
         />
       </button>
@@ -42,11 +42,13 @@ export default function CustomSelect({ value, onChange, options = [], placeholde
       <AnimatePresence>
         {isOpen && (
           <motion.div
-            initial={{ opacity: 0, y: -5, scale: 0.98 }}
+            initial={{ opacity: 0, y: placement === 'top' ? 5 : -5, scale: 0.98 }}
             animate={{ opacity: 1, y: 0, scale: 1 }}
-            exit={{ opacity: 0, y: -5, scale: 0.98 }}
+            exit={{ opacity: 0, y: placement === 'top' ? 5 : -5, scale: 0.98 }}
             transition={{ duration: 0.15 }}
-            className="absolute z-[999] w-full mt-2 bg-white/90 backdrop-blur-xl border border-white/60 shadow-xl rounded-xl overflow-hidden"
+            className={`absolute z-[999] w-full bg-white/90 backdrop-blur-xl border border-white/60 shadow-xl rounded-xl overflow-hidden ${
+              placement === 'top' ? 'bottom-full mb-2' : 'mt-2'
+            }`}
           >
             <ul className="max-h-60 overflow-y-auto p-1">
               {options.map((option) => (

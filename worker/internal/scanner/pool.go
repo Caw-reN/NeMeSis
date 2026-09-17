@@ -5,6 +5,7 @@ import (
 	"time"
 
 	"github.com/Caw-reN/NeMeSis/worker/internal/database"
+	"github.com/Caw-reN/NeMeSis/worker/internal/notifier"
 	"github.com/Caw-reN/NeMeSis/worker/pkg/logger"
 )
 
@@ -90,6 +91,9 @@ func ProcessResults(results []Result) {
 		// Log status change only if status actually changed
 		if newStatus != r.Device.CurrentStatus {
 			logStatusChange(r, newStatus)
+			
+			// Send Telegram Alert asynchronously so it doesn't block processing
+			go notifier.SendTelegramAlert(r.Device, newStatus, r.LatencyMs)
 		}
 
 		if r.PingOK {

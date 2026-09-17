@@ -81,6 +81,147 @@ class DeviceConfigController extends Controller
         }
     }
 
+    public function updatePortConfig(Request $request, Device $device)
+    {
+        if ($device->vendor !== 'cisco') {
+            return response()->json(['message' => 'Port configuration is only supported for Cisco devices.'], 400);
+        }
+
+        $request->validate([
+            'interface' => 'required|string',
+            'mode'      => 'required|string|in:access,trunk',
+            'vlan_id'   => 'nullable|integer|min:1|max:4094',
+            'name'      => 'nullable|string|max:255',
+        ]);
+
+        $interface = $request->input('interface');
+        $mode      = $request->input('mode');
+        $vlanId    = $request->input('vlan_id');
+        $name      = $request->has('name') ? ($request->input('name') ?? '') : null;
+
+        try {
+            $this->executeAction($device, function ($service) use ($interface, $mode, $vlanId, $name) {
+                if (method_exists($service, 'updatePortConfig')) {
+                    $service->updatePortConfig($interface, $mode, $vlanId, $name);
+                } else {
+                    throw new \RuntimeException("Method updatePortConfig not implemented on this service.");
+                }
+            });
+
+            $logMsg = "Port {$interface} configured: Mode={$mode}";
+            if ($mode === 'access') $logMsg .= ", VLAN={$vlanId}";
+            if ($name !== null) $logMsg .= ", Name=" . ($name === '' ? '(removed)' : "'{$name}'");
+            
+            $this->logAction($device, $logMsg, 'config_change');
+
+            return response()->json(['message' => "Port {$interface} successfully updated."]);
+        } catch (\Exception $e) {
+            Log::error("Failed to update port config on device {$device->id}: " . $e->getMessage());
+            return response()->json(['message' => 'Failed to update port: ' . $e->getMessage()], 500);
+        }
+    }
+
+    public function renamePort(Request $request, Device $device)
+    {
+        if ($device->vendor !== 'cisco') {
+            return response()->json(['message' => 'Port renaming is only supported for Cisco devices.'], 400);
+        }
+
+        $request->validate([
+            'interface' => 'required|string',
+            'name'      => 'nullable|string|max:255',
+        ]);
+
+        $interface = $request->input('interface');
+        $name      = $request->input('name') ?? '';
+
+        try {
+            $this->executeAction($device, function ($service) use ($interface, $name) {
+                if (method_exists($service, 'setPortName')) {
+                    $service->setPortName($interface, $name);
+                } else {
+                    throw new \RuntimeException("Method setPortName not implemented on this service.");
+                }
+            });
+
+            $logMsg = $name === '' 
+                ? "Description removed from port {$interface}."
+                : "Port {$interface} renamed to '{$name}'.";
+            $this->logAction($device, $logMsg, 'config_change');
+
+            return response()->json(['message' => $logMsg]);
+        } catch (\Exception $e) {
+            Log::error("Failed to rename port on device {$device->id}: " . $e->getMessage());
+            return response()->json(['message' => 'Failed to rename port: ' . $e->getMessage()], 500);
+        }
+    }
+
+    public function createVlan(Request $request, Device $device)
+    {
+        if ($device->vendor !== 'cisco') {
+            return response()->json(['message' => 'VLAN creation is only supported for Cisco devices.'], 400);
+        }
+
+        $request->validate([
+            'vlan_id' => 'required|integer|min:2|max:4094',
+            'name'    => 'nullable|string|max:32',
+        ]);
+
+        $vlanId = $request->input('vlan_id');
+        $name   = $request->input('name') ?? '';
+
+        try {
+            $this->executeAction($device, function ($service) use ($vlanId, $name) {
+                if (method_exists($service, 'createVlan')) {
+                    $service->createVlan($vlanId, $name);
+                } else {
+                    throw new \RuntimeException("Method createVlan not implemented on this service.");
+                }
+            });
+
+            $logMsg = $name !== ''
+                ? "VLAN {$vlanId} ({$name}) created."
+                : "VLAN {$vlanId} created.";
+            $this->logAction($device, $logMsg, 'config_change');
+
+            return response()->json(['message' => $logMsg]);
+        } catch (\Exception $e) {
+            Log::error("Failed to create VLAN on device {$device->id}: " . $e->getMessage());
+            return response()->json(['message' => 'Failed to create VLAN: ' . $e->getMessage()], 500);
+        }
+    }
+
+    public function deleteVlan(Request $request, Device $device)
+    {
+        if ($device->vendor !== 'cisco') {
+            return response()->json(['message' => 'VLAN deletion is only supported for Cisco devices.'], 400);
+        }
+
+        $request->validate([
+            'vlan_id' => 'required|integer|min:2|max:4094',
+        ]);
+
+        $vlanId = $request->input('vlan_id');
+
+        try {
+            $this->executeAction($device, function ($service) use ($vlanId) {
+                if (method_exists($service, 'deleteVlan')) {
+                    $service->deleteVlan($vlanId);
+                } else {
+                    throw new \RuntimeException("Method deleteVlan not implemented on this service.");
+                }
+            });
+
+            $logMsg = "VLAN {$vlanId} deleted.";
+            $this->logAction($device, $logMsg, 'config_change');
+
+            return response()->json(['message' => $logMsg]);
+        } catch (\Exception $e) {
+            Log::error("Failed to delete VLAN on device {$device->id}: " . $e->getMessage());
+            return response()->json(['message' => 'Failed to delete VLAN: ' . $e->getMessage()], 500);
+        }
+    }
+
     public function reboot(Request $request, Device $device)
     {
         try {

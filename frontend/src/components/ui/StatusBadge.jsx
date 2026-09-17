@@ -3,7 +3,7 @@ import { ArrowUp, ArrowDown, Minus } from 'lucide-react'
 import { statusColors } from '../../utils/helpers'
 
 /**
- * StatusBadge — displays device status with an arrow icon.
+ * StatusBadge - displays device status with an arrow icon.
  * UP = green arrow up, DOWN = red arrow down, UNKNOWN = slate dash
  */
 export default function StatusBadge({ status, size = 'sm' }) {

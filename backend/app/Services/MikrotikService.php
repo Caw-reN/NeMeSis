@@ -158,6 +158,8 @@ class MikrotikService
 
     /**
      * Get DHCP leases (active clients). Returns empty array if no DHCP server configured.
+     *
+     * Key fields: address, mac-address, host-name, client-id, status, active-address
      */
     public function getDhcpLeases(): array
     {
@@ -165,6 +167,23 @@ class MikrotikService
             return $this->query(['/ip/dhcp-server/lease/print']);
         } catch (\RuntimeException) {
             return []; // Device has no DHCP server — not an error
+        }
+    }
+
+    /**
+     * Get ARP table (/ip/arp/print).
+     *
+     * Returns all IP↔MAC mappings currently cached by the router.
+     * Useful for discovering devices with static IPs that may not appear in DHCP leases.
+     *
+     * Key fields: address, mac-address, interface, dynamic, complete
+     */
+    public function getArpTable(): array
+    {
+        try {
+            return $this->query(['/ip/arp/print']);
+        } catch (\RuntimeException) {
+            return [];
         }
     }
 

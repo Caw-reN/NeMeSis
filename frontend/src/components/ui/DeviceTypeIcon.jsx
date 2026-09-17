@@ -10,7 +10,7 @@ const ICONS = {
 }
 
 /**
- * DeviceTypeIcon — renders a lucide icon for the given device type.
+ * DeviceTypeIcon - renders a lucide icon for the given device type.
  */
 export default function DeviceTypeIcon({ type, size = 18, className = '' }) {
   const Icon = ICONS[type] ?? HelpCircle

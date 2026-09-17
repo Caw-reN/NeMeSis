@@ -30,7 +30,7 @@ export const capitalize = (str) =>
  * Map vendor key to display label.
  */
 export const vendorLabel = (vendor) => {
-  const map = { mikrotik: 'Mikrotik', cisco: 'Cisco', generic: 'Generic' }
+  const map = { mikrotik: 'Mikrotik', cisco: 'Cisco', generic: 'Generic', server: 'Linux / VPS' }
   return map[vendor] ?? capitalize(vendor)
 }
 

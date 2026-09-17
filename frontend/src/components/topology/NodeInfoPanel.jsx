@@ -5,13 +5,13 @@ import DeviceTypeIcon from '../ui/DeviceTypeIcon'
 import { formatLatency, timeAgo, vendorLabel, typeLabel } from '../../utils/helpers'
 
 /**
- * NodeInfoPanel — appears near the cursor when a topology node is selected.
+ * NodeInfoPanel - appears near the cursor when a topology node is selected.
  *
  * Props:
- *   node     — device object (from API /api/devices/{id})
- *   position — { x, y } click coordinates from Vis.js pointer.DOM
- *   onEdit   — callback to enter edit mode
- *   onClose  — callback to deselect
+ *   node     - device object (from API /api/devices/{id})
+ *   position - { x, y } click coordinates from Vis.js pointer.DOM
+ *   onEdit   - callback to enter edit mode
+ *   onClose  - callback to deselect
  */
 export default function NodeInfoPanel({ node, position, onEdit, onClose }) {
   // Calculate constrained position to prevent modal from going off-screen
@@ -115,7 +115,7 @@ function Row({ icon, label, value }) {
     <div className="flex items-start gap-2 text-sm">
       <span className="text-slate-400 mt-0.5 shrink-0">{icon}</span>
       <span className="text-slate-500 shrink-0 w-16">{label}</span>
-      <span className="text-slate-800 font-medium truncate">{value ?? '—'}</span>
+      <span className="text-slate-800 font-medium truncate">{value ?? '-'}</span>
     </div>
   )
 }

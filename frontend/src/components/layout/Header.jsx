@@ -11,7 +11,7 @@ const PAGE_TITLES = {
 }
 
 /**
- * Header — Clean top bar with brand badge, current page title, and user dropdown.
+ * Header - Clean top bar with brand badge, current page title, and user dropdown.
  */
 export default function Header() {
   const { pathname }     = useLocation()

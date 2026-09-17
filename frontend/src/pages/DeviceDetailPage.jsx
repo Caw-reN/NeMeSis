@@ -6,6 +6,7 @@ import StatusBadge      from '../components/ui/StatusBadge'
 import DeviceTypeIcon   from '../components/ui/DeviceTypeIcon'
 import MikrotikMetricsPanel from '../components/metrics/MikrotikMetricsPanel'
 import CiscoMetricsPanel    from '../components/metrics/CiscoMetricsPanel'
+import VpsMetricsPanel      from '../components/metrics/VpsMetricsPanel'
 import { devicesService }   from '../services/devices.service'
 import { vendorLabel, typeLabel, timeAgo, formatLatency } from '../utils/helpers'
 import { toast } from '../utils/toast'
@@ -61,7 +62,7 @@ export default function DeviceDetailPage() {
     )
   }
 
-  const hasMetrics = device.vendor === 'mikrotik' || device.vendor === 'cisco'
+  const hasMetrics = device.vendor === 'mikrotik' || device.vendor === 'cisco' || device.vendor === 'server'
 
   const handleReboot = async () => {
     setRebooting(true)
@@ -102,7 +103,7 @@ export default function DeviceDetailPage() {
               <h1 className="font-display font-bold text-slate-900 text-2xl">{device.name}</h1>
               <StatusBadge status={device.status} size="lg" />
             </div>
-            <p className="text-slate-500 font-mono text-sm mt-0.5">{device.ip_address}</p>
+            <p className="text-slate-500 font-mono text-sm mt-0.5">{device.ip_address || 'No IP'}</p>
             <div className="flex flex-wrap gap-4 mt-3 text-sm text-slate-500">
               <Info label="Type"    value={typeLabel(device.type)} />
               <Info label="Vendor"  value={vendorLabel(device.vendor)} />
@@ -116,7 +117,7 @@ export default function DeviceDetailPage() {
               </p>
             )}
           </div>
-          {hasMetrics && (
+          {hasMetrics && device.vendor !== 'server' && (
             <div className="flex shrink-0">
               <button
                 onClick={() => setRebootModalOpen(true)}
@@ -131,8 +132,11 @@ export default function DeviceDetailPage() {
 
       {/* Tab navigation */}
       <div className="flex gap-1 bg-slate-100 rounded-xl p-1 w-fit">
-        {TABS.map(t => (
-          (t.id === 'monitoring' || t.id === 'terminal') && !hasMetrics ? null : (
+        {TABS.map(t => {
+          if ((t.id === 'monitoring' || t.id === 'terminal') && !hasMetrics) return null
+          // Terminal only works for Mikrotik/Cisco (SSH), not for Linux/VPS (SNMP)
+          if (t.id === 'terminal' && device.vendor === 'server') return null
+          return (
             <button
               key={t.id}
               onClick={() => setTab(t.id)}
@@ -145,7 +149,7 @@ export default function DeviceDetailPage() {
               {t.label}
             </button>
           )
-        ))}
+        })}
       </div>
 
       {/* Tab panels */}
@@ -164,6 +168,9 @@ export default function DeviceDetailPage() {
               )}
               {device.vendor === 'cisco' && (
                 <CiscoMetricsPanel deviceId={device.id} deviceName={device.name} />
+              )}
+              {device.vendor === 'server' && (
+                <VpsMetricsPanel deviceId={device.id} deviceName={device.name} />
               )}
             </div>
           )}
@@ -200,7 +207,7 @@ function Info({ label, value }) {
   return (
     <span>
       <span className="text-slate-400">{label}:</span>{' '}
-      <span className="font-medium text-slate-700">{value ?? '—'}</span>
+      <span className="font-medium text-slate-700">{value ?? '-'}</span>
     </span>
   )
 }

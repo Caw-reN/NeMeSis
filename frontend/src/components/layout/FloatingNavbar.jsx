@@ -1,15 +1,17 @@
 import { NavLink } from 'react-router-dom'
 import { motion } from 'framer-motion'
-import { LayoutDashboard, Monitor, Network, Zap } from 'lucide-react'
+import { LayoutDashboard, Monitor, Network, Zap, Map, Settings } from 'lucide-react'
 
 const NAV_ITEMS = [
   { to: '/dashboard', icon: <LayoutDashboard size={18} />, label: 'Dashboard' },
   { to: '/devices',   icon: <Monitor  size={18} />, label: 'Devices'   },
   { to: '/topology',  icon: <Network  size={18} />, label: 'Topology'  },
+  { to: '/areas',     icon: <Map      size={18} />, label: 'Maps'      },
+  { to: '/settings',  icon: <Settings size={18} />, label: 'Settings'  },
 ]
 
 /**
- * FloatingNavbar — Modern floating bottom navigation pill bar.
+ * FloatingNavbar - Modern floating bottom navigation pill bar.
  */
 export default function FloatingNavbar() {
   return (

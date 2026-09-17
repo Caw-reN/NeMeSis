@@ -1,11 +1,11 @@
 import { ArrowUp, ArrowDown } from 'lucide-react'
 
 /**
- * InterfaceTable — generik untuk Mikrotik dan Cisco interfaces.
+ * InterfaceTable - generik untuk Mikrotik dan Cisco interfaces.
  *
  * Props:
- *   interfaces  — array of interface objects
- *   vendor      — 'mikrotik' | 'cisco'
+ *   interfaces  - array of interface objects
+ *   vendor      - 'mikrotik' | 'cisco'
  */
 export default function InterfaceTable({ interfaces = [], vendor, onTogglePort }) {
   if (!interfaces.length) {
@@ -43,8 +43,8 @@ export default function InterfaceTable({ interfaces = [], vendor, onTogglePort }
         </thead>
         <tbody className="divide-y divide-slate-100">
           {interfaces.map((iface, i) => (
-            <tr key={i} className="hover:bg-slate-50 transition-colors">
-              {isMikrotik ? (
+            <tr key={i} className="hover:bg-slate-50/80 transition-colors group">
+              {vendor === 'mikrotik' ? (
                 <MikrotikRow iface={iface} onTogglePort={onTogglePort} />
               ) : (
                 <CiscoRow iface={iface} onTogglePort={onTogglePort} />
@@ -63,7 +63,7 @@ function MikrotikRow({ iface, onTogglePort }) {
     <>
       <Td className="font-mono font-semibold text-slate-800">{iface.name}</Td>
       <Td><StatusDot up={iface.running === 'true' && iface.disabled !== 'true'} /></Td>
-      <Td className="text-slate-500">{iface.type ?? '—'}</Td>
+      <Td className="text-slate-500">{iface.type ?? '-'}</Td>
       <Td className="font-mono">{fmt(iface['rx-bits-per-second'])}</Td>
       <Td className="font-mono">{fmt(iface['tx-bits-per-second'])}</Td>
       <Td className="font-mono">{fmt(iface['rx-packet'])}</Td>
@@ -72,12 +72,12 @@ function MikrotikRow({ iface, onTogglePort }) {
         <Td align="right">
           <button
             onClick={() => onTogglePort(iface.name, iface.disabled === 'true')}
-            className={`relative inline-flex h-5 w-9 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none ${
+            className={`relative inline-flex h-4 w-7 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none ${
               iface.disabled === 'false' ? 'bg-emerald-500 hover:bg-emerald-600' : 'bg-slate-300 hover:bg-slate-400'
-            }`}
+            } opacity-50 group-hover:opacity-100`}
             title={iface.disabled === 'false' ? 'Disable Port' : 'Enable Port'}
           >
-            <span className={`pointer-events-none inline-block h-4 w-4 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out ${iface.disabled === 'false' ? 'translate-x-4' : 'translate-x-0'}`} />
+            <span className={`pointer-events-none inline-block h-3 w-3 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out ${iface.disabled === 'false' ? 'translate-x-3' : 'translate-x-0'}`} />
           </button>
         </Td>
       )}
@@ -91,8 +91,8 @@ function CiscoRow({ iface, onTogglePort }) {
     <>
       <Td className="font-mono font-semibold text-slate-800">{iface.name}</Td>
       <Td><StatusDot up={isUp} /></Td>
-      <Td className="text-slate-500">{iface.admin_status ?? '—'}</Td>
-      <Td className="text-slate-500">{iface.line_protocol ?? '—'}</Td>
+      <Td className="text-slate-500">{iface.admin_status ?? '-'}</Td>
+      <Td className="text-slate-500">{iface.line_protocol ?? '-'}</Td>
       <Td className="font-mono">{fmtBps(iface.input_bps)}</Td>
       <Td className="font-mono">{fmtBps(iface.output_bps)}</Td>
       <Td className="font-mono text-rose-600">{fmt(iface.errors_in)}</Td>
@@ -100,12 +100,12 @@ function CiscoRow({ iface, onTogglePort }) {
         <Td align="right">
           <button
             onClick={() => onTogglePort(iface.name, iface.admin_status !== 'up')}
-            className={`relative inline-flex h-5 w-9 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none ${
+            className={`relative inline-flex h-4 w-7 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none ${
               iface.admin_status === 'up' ? 'bg-emerald-500 hover:bg-emerald-600' : 'bg-slate-300 hover:bg-slate-400'
-            }`}
+            } opacity-50 group-hover:opacity-100`}
             title={iface.admin_status === 'up' ? 'Disable Port' : 'Enable Port'}
           >
-            <span className={`pointer-events-none inline-block h-4 w-4 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out ${iface.admin_status === 'up' ? 'translate-x-4' : 'translate-x-0'}`} />
+            <span className={`pointer-events-none inline-block h-3 w-3 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out ${iface.admin_status === 'up' ? 'translate-x-3' : 'translate-x-0'}`} />
           </button>
         </Td>
       )}
@@ -125,9 +125,9 @@ function StatusDot({ up }) {
   )
 }
 
-function Th({ children, align = 'left' }) {
+function Th({ children, align = 'left', className = '' }) {
   return (
-    <th className={`px-4 py-2.5 text-xs font-semibold text-slate-500 uppercase tracking-wider ${align === 'right' ? 'text-right' : 'text-left'}`}>
+    <th className={`px-4 py-2 text-[11px] font-bold text-slate-500 uppercase tracking-wider ${align === 'right' ? 'text-right' : 'text-left'} ${className}`}>
       {children}
     </th>
   )
@@ -135,7 +135,7 @@ function Th({ children, align = 'left' }) {
 
 function Td({ children, className = '', align = 'left' }) {
   return (
-    <td className={`px-4 py-2.5 ${align === 'right' ? 'text-right' : 'text-left'} ${className}`}>
+    <td className={`px-4 py-2 ${align === 'right' ? 'text-right' : 'text-left'} ${className}`}>
       {children}
     </td>
   )
@@ -143,7 +143,7 @@ function Td({ children, className = '', align = 'left' }) {
 
 // Format number with K/M suffix
 function fmt(val) {
-  if (val === undefined || val === null) return '—'
+  if (val === undefined || val === null) return '-'
   const n = typeof val === 'string' ? parseInt(val, 10) : val
   if (isNaN(n)) return val
   if (n >= 1_000_000) return (n / 1_000_000).toFixed(1) + 'M'
@@ -152,9 +152,9 @@ function fmt(val) {
 }
 
 function fmtBps(val) {
-  if (val === undefined || val === null) return '—'
+  if (val === undefined || val === null) return '-'
   const n = Number(val)
-  if (isNaN(n)) return '—'
+  if (isNaN(n)) return '-'
   if (n >= 1_000_000) return (n / 1_000_000).toFixed(1) + ' Mbps'
   if (n >= 1_000) return (n / 1_000).toFixed(1) + ' Kbps'
   return n + ' bps'

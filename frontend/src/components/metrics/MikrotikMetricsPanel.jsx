@@ -5,6 +5,7 @@ import InterfaceTable from './InterfaceTable'
 import { metricsService } from '../../services/metrics.service'
 import { toast } from '../../utils/toast'
 import ConfigConfirmationModal from '../ui/ConfigConfirmationModal'
+import DataTable from '../ui/DataTable'
 import api from '../../services/api'
 
 const REFRESH_INTERVAL_MS = 30_000
@@ -19,8 +20,8 @@ const REFRESH_INTERVAL_MS = 30_000
  * - DHCP leases table
  *
  * Props:
- *   deviceId   — device DB id
- *   deviceName — display name for the header
+ *   deviceId   - device DB id
+ *   deviceName - display name for the header
  */
 export default function MikrotikMetricsPanel({ deviceId, deviceName }) {
   const [metrics, setMetrics]   = useState(null)
@@ -88,8 +89,8 @@ export default function MikrotikMetricsPanel({ deviceId, deviceName }) {
       <div className="flex items-center gap-3">
         <div>
           <p className="text-xs text-slate-400">
-            Mikrotik RouterOS API — Live metrics
-            {lastAt && ` · last polled ${lastAt.toLocaleTimeString()}`}
+            Mikrotik RouterOS API - Live metrics
+            {lastAt && ` � last polled ${lastAt.toLocaleTimeString()}`}
           </p>
         </div>
         <button
@@ -226,68 +227,48 @@ function ResourceCard({ icon, label, value, sub, accent }) {
 }
 
 function DhcpLeasesTable({ leases }) {
-  if (!leases.length) return <p className="text-sm text-slate-400 py-4 text-center">No DHCP leases (or DHCP server not configured).</p>
+  const columns = [
+    { key: 'address', label: 'IP Address', className: 'font-mono font-medium text-slate-800' },
+    { key: 'mac-address', label: 'MAC Address', className: 'font-mono text-slate-500' },
+    { key: 'host-name', label: 'Host Name', render: (v) => v || <span className="text-slate-400 italic">unknown</span> },
+    { key: 'status', label: 'Status', render: (v) => (
+      <span className={`text-xs font-semibold px-2 py-0.5 rounded-full ${
+        v === 'bound' ? 'bg-emerald-100 text-emerald-700' : 'bg-slate-100 text-slate-600'
+      }`}>{v ?? '-'}</span>
+    ) },
+    { key: 'expires-after', label: 'Expires In', className: 'text-slate-500 text-xs font-mono' }
+  ]
 
   return (
-    <div className="overflow-x-auto rounded-xl border border-slate-200">
-      <table className="w-full text-sm">
-        <thead>
-          <tr className="bg-slate-50 border-b border-slate-200">
-            {['IP Address', 'MAC Address', 'Host Name', 'Status', 'Expires In'].map(h => (
-              <th key={h} className="px-4 py-2.5 text-left text-xs font-semibold text-slate-500 uppercase tracking-wider">{h}</th>
-            ))}
-          </tr>
-        </thead>
-        <tbody className="divide-y divide-slate-100">
-          {leases.map((l, i) => (
-            <tr key={i} className="hover:bg-slate-50 transition-colors">
-              <td className="px-4 py-2.5 font-mono text-slate-800 font-medium">{l.address ?? '—'}</td>
-              <td className="px-4 py-2.5 font-mono text-slate-500">{l['mac-address'] ?? '—'}</td>
-              <td className="px-4 py-2.5 text-slate-700">{l['host-name'] || <span className="text-slate-400 italic">unknown</span>}</td>
-              <td className="px-4 py-2.5">
-                <span className={`text-xs font-semibold px-2 py-0.5 rounded-full ${
-                  l.status === 'bound' ? 'bg-emerald-100 text-emerald-700' : 'bg-slate-100 text-slate-600'
-                }`}>{l.status ?? '—'}</span>
-              </td>
-              <td className="px-4 py-2.5 text-slate-500 text-xs font-mono">{l['expires-after'] ?? '—'}</td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
-    </div>
+    <DataTable
+      columns={columns}
+      data={leases}
+      emptyMessage="No DHCP leases (or DHCP server not configured)."
+      searchPlaceholder="Search leases..."
+    />
   )
 }
 
 function RoutingTable({ routes }) {
-  if (!routes.length) return <p className="text-sm text-slate-400 py-4 text-center">No routes found.</p>
+  const columns = [
+    { key: 'dst-address', label: 'Destination', className: 'font-mono font-medium text-slate-800' },
+    { key: 'gateway', label: 'Gateway', render: (v, r) => v ?? r['pref-src'] ?? '-', className: 'font-mono text-slate-600' },
+    { key: 'interface', label: 'Interface', render: (v, r) => r['routing-mark'] || r.interface || '-', className: 'text-slate-600' },
+    { key: 'distance', label: 'Distance', className: 'text-slate-500' },
+    { key: 'active', label: 'Active', render: (v) => (
+      <span className={`text-xs font-bold ${v === 'true' ? 'text-emerald-600' : 'text-slate-400'}`}>
+        {v === 'true' ? '✓' : '-'}
+      </span>
+    ) }
+  ]
 
   return (
-    <div className="overflow-x-auto rounded-xl border border-slate-200">
-      <table className="w-full text-sm">
-        <thead>
-          <tr className="bg-slate-50 border-b border-slate-200">
-            {['Destination', 'Gateway', 'Interface', 'Distance', 'Active'].map(h => (
-              <th key={h} className="px-4 py-2.5 text-left text-xs font-semibold text-slate-500 uppercase tracking-wider">{h}</th>
-            ))}
-          </tr>
-        </thead>
-        <tbody className="divide-y divide-slate-100">
-          {routes.map((r, i) => (
-            <tr key={i} className="hover:bg-slate-50 transition-colors">
-              <td className="px-4 py-2.5 font-mono font-medium text-slate-800">{r['dst-address'] ?? '—'}</td>
-              <td className="px-4 py-2.5 font-mono text-slate-600">{r.gateway ?? r['pref-src'] ?? '—'}</td>
-              <td className="px-4 py-2.5 text-slate-600">{r['routing-mark'] || r.interface || '—'}</td>
-              <td className="px-4 py-2.5 text-slate-500">{r.distance ?? '—'}</td>
-              <td className="px-4 py-2.5">
-                <span className={`text-xs font-bold ${r.active === 'true' ? 'text-emerald-600' : 'text-slate-400'}`}>
-                  {r.active === 'true' ? '✓' : '—'}
-                </span>
-              </td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
-    </div>
+    <DataTable
+      columns={columns}
+      data={routes}
+      emptyMessage="No routes found."
+      searchPlaceholder="Search routes..."
+    />
   )
 }
 

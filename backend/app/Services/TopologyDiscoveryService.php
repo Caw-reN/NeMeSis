@@ -32,6 +32,15 @@ class TopologyDiscoveryService
     private int $linksUpdated = 0;
     private int $errors       = 0;
 
+    /** IP ranges filter (CIDR / range / single) — empty = no filter */
+    private array $ipRanges = [];
+
+    /**
+     * Device type filter — empty = no filter.
+     * Supported values: 'ap' (Access Points only)
+     */
+    private string $filterType = '';
+
     public function __construct(
         private readonly DeviceCredentialService $credService,
     ) {}
@@ -53,12 +62,14 @@ class TopologyDiscoveryService
      *   details: array
      * }
      */
-    public function run(?int $deviceId = null): array
+    public function run(?int $deviceId = null, array $ipRanges = [], string $filterType = ''): array
     {
         $this->discovered   = [];
         $this->linksCreated = 0;
         $this->linksUpdated = 0;
         $this->errors       = 0;
+        $this->ipRanges     = $ipRanges;
+        $this->filterType   = $filterType;
 
         // Load candidate devices
         $query = Device::active();
@@ -73,6 +84,12 @@ class TopologyDiscoveryService
         $scanned = 0;
 
         foreach ($devices as $device) {
+            // Optimization: If user specified an IP range filter, skip scanning Cisco switches 
+            // since they only act as L2 distribution and don't hold the ARP/DHCP endpoint tables.
+            if (!empty($this->ipRanges) && $device->vendor === 'cisco') {
+                continue;
+            }
+
             try {
                 $neighbors = $this->pullNeighbors($device);
                 $this->processNeighbors($device, $neighbors);
@@ -122,18 +139,85 @@ class TopologyDiscoveryService
         $service->connect($creds['api_user'], $creds['api_pass']);
 
         try {
-            $rows = $service->getNeighbors();
+            // --- Source 1: DHCP Leases ---
+            // Best source of truth: has hostnames and is always populated if MikroTik acts as DHCP server.
+            $leases = $service->getDhcpLeases();
+
+            // --- Source 2: ARP Table ---
+            // Catches devices with static IPs that never appear in DHCP leases.
+            $arp = $service->getArpTable();
         } finally {
             $service->disconnect();
         }
 
-        return array_map(fn (array $row) => [
-            'ip'           => $row['address']        ?? $row['address4']   ?? '',
-            'hostname'     => $row['identity']        ?? $row['system-name'] ?? '',
-            'local_iface'  => $row['interface']       ?? '',
-            'remote_iface' => $row['interface-name']  ?? '',
-            'protocol'     => 'lldp',
-        ], $rows);
+        // Build a map keyed by IP to merge and deduplicate both sources.
+        // DHCP lease data takes priority (has hostname), ARP fills in the rest.
+        $byIp = [];
+
+        // Add ARP entries first (lower priority)
+        foreach ($arp as $row) {
+            $ip  = trim($row['address'] ?? '');
+            $mac = trim($row['mac-address'] ?? '');
+
+            // Skip incomplete/dynamic-only entries with no IP
+            if (!$ip || $ip === '0.0.0.0') continue;
+            // Skip the MikroTik's own IP to avoid self-referencing
+            if ($ip === $device->ip_address) continue;
+
+            $byIp[$ip] = [
+                'ip'          => $ip,
+                'hostname'    => '',   // ARP doesn't have hostnames
+                'mac'         => $mac,
+                'local_iface' => $row['interface'] ?? '',
+                'source'      => 'arp',
+            ];
+        }
+
+        // Overlay DHCP lease data (higher priority — overwrites ARP if same IP)
+        foreach ($leases as $row) {
+            // Use active-address if available, fall back to address
+            $ip       = trim($row['active-address'] ?? $row['address'] ?? '');
+            $hostname = trim($row['host-name'] ?? $row['client-id'] ?? '');
+            $mac      = trim($row['mac-address'] ?? '');
+
+            if (!$ip || $ip === '0.0.0.0') continue;
+            if ($ip === $device->ip_address) continue;
+
+            $byIp[$ip] = [
+                'ip'          => $ip,
+                'hostname'    => $hostname,
+                'mac'         => $mac,
+                'local_iface' => '',   // DHCP leases don't expose interface info
+                'source'      => 'dhcp',
+            ];
+        }
+
+        // Map to the standard neighbor format expected by processNeighbors()
+        $neighbors = array_values(array_map(fn (array $entry) => [
+            'ip'           => $entry['ip'],
+            'hostname'     => $entry['hostname'],
+            'local_iface'  => $entry['local_iface'],
+            'remote_iface' => '',
+            'protocol'     => $entry['source'], // 'arp' or 'dhcp'
+        ], $byIp));
+
+        // Apply IP range filter if specified
+        if (!empty($this->ipRanges)) {
+            $neighbors = array_values(array_filter(
+                $neighbors,
+                fn ($n) => $this->ipInRanges($n['ip'], $this->ipRanges)
+            ));
+        }
+
+        // Apply device type filter if specified
+        if ($this->filterType === 'ap') {
+            $neighbors = array_values(array_filter(
+                $neighbors,
+                fn ($n) => $this->isAccessPoint($n['hostname'])
+            ));
+        }
+
+        return $neighbors;
     }
 
     private function pullCiscoNeighbors(Device $device): array
@@ -143,7 +227,7 @@ class TopologyDiscoveryService
             return [];
         }
 
-        $service = new CiscoSshService($device->ip_address, $creds['ssh_port']);
+        $service = new CiscoSshService($device->ip_address, $creds['ssh_port'], 3);
         $service->connect($creds['ssh_user'], $creds['ssh_pass'], $creds['enable_pass']);
 
         try {
@@ -157,6 +241,104 @@ class TopologyDiscoveryService
         }
 
         return $neighbors;
+    }
+
+    // =========================================================================
+    // IP Range & Device Type Filtering Helpers
+    // =========================================================================
+
+    /**
+     * Detect if a hostname belongs to an Access Point device.
+     *
+     * Covers common AP vendors and naming conventions:
+     *   - TP-Link EAP series (EAP110, EAP225, EAP245, etc.)
+     *   - Ubiquiti UniFi (UAP-AC-PRO, U7Pro, etc.)
+     *   - MikroTik CAP (cAP, wAP, OmniTIK, etc.)
+     *   - Cisco AP (AIR-, AP-xxx)
+     *   - Huawei AP (AP4xxx, AP6xxx)
+     *   - Generic patterns
+     */
+    private function isAccessPoint(string $hostname): bool
+    {
+        if (empty($hostname)) return false;
+
+        $h = strtolower($hostname);
+
+        // TP-Link EAP series
+        if (str_starts_with($h, 'eap')) return true;
+
+        // Ubiquiti UniFi AP: UAP-*, U6-*, U7-*, UniFi-*
+        if (str_starts_with($h, 'uap')) return true;
+        if (str_starts_with($h, 'u6-') || str_starts_with($h, 'u7-')) return true;
+        if (str_contains($h, 'unifi')) return true;
+
+        // MikroTik CAP / wAP / OmniTIK / nanostation
+        if (str_starts_with($h, 'cap')) return true;
+        if (str_starts_with($h, 'wap')) return true;
+        if (str_contains($h, 'omnitik')) return true;
+        if (str_contains($h, 'nanostation')) return true;
+        if (str_contains($h, 'nanohd')) return true;
+
+        // Cisco AP (AIR-xxxxxx, AP-xxx)
+        if (str_starts_with($h, 'air-')) return true;
+
+        // Huawei AP
+        if (preg_match('/^ap[46]\d{3}/i', $hostname)) return true;
+
+        // Generic: hostname contains 'ap' as a standalone word/prefix
+        if (preg_match('/\bap[-_]\w+|\bap\d+/i', $hostname)) return true;
+
+        // Keywords
+        if (str_contains($h, 'access-point') || str_contains($h, 'accesspoint')) return true;
+        if (str_contains($h, 'wifi-ap') || str_contains($h, 'wlan-ap')) return true;
+
+        return false;
+    }
+
+    /**
+     * Check if an IP address is within any of the given ranges.
+     *
+     * Supported formats:
+     *   - CIDR:  192.168.1.0/24
+     *   - Range: 192.168.1.1-192.168.1.254
+     *   - Single: 192.168.1.50
+     */
+    private function ipInRanges(string $ip, array $ranges): bool
+    {
+        if (empty($ranges)) return true;
+        if (!filter_var($ip, FILTER_VALIDATE_IP)) return false;
+
+        $ipLong = ip2long($ip);
+
+        foreach ($ranges as $range) {
+            $range = trim($range);
+
+            if (str_contains($range, '/')) {
+                // CIDR notation
+                [$subnet, $bits] = explode('/', $range, 2);
+                $bits = (int)$bits;
+                $subnetLong = ip2long($subnet);
+                $mask = $bits === 0 ? 0 : (~0 << (32 - $bits));
+                if (($ipLong & $mask) === ($subnetLong & $mask)) {
+                    return true;
+                }
+            } elseif (str_contains($range, '-')) {
+                // Range notation: start-end
+                [$start, $end] = explode('-', $range, 2);
+                $startLong = ip2long(trim($start));
+                $endLong   = ip2long(trim($end));
+                if ($startLong !== false && $endLong !== false && $ipLong >= $startLong && $ipLong <= $endLong) {
+                    return true;
+                }
+            } else {
+                // Single IP
+                if (ip2long($range) === $ipLong) {
+                    return true;
+                }
+            }
+        }
+
+        return false;
     }
 
     // =========================================================================

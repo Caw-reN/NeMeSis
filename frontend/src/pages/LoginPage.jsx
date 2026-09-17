@@ -117,7 +117,7 @@ export default function LoginPage() {
         </div>
 
         <p className="text-center text-xs text-slate-400 mt-4">
-          NMS — Network Command Center v0.2.0
+          NMS - Network Command Center v0.2.0
         </p>
       </motion.div>
     </div>

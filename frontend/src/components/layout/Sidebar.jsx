@@ -10,10 +10,11 @@ const NAV_ITEMS = [
   { to: '/dashboard', icon: <LayoutDashboard size={18} />, label: 'Dashboard' },
   { to: '/devices',   icon: <Monitor  size={18} />, label: 'Devices'   },
   { to: '/topology',  icon: <Network  size={18} />, label: 'Topology'  },
+  { to: '/settings',  icon: <Settings size={18} />, label: 'Settings'  },
 ]
 
 /**
- * Sidebar — Fixed navigation on desktop, slide-in drawer on mobile.
+ * Sidebar - Fixed navigation on desktop, slide-in drawer on mobile.
  * Props: open (mobile), onClose (mobile)
  */
 export default function Sidebar({ open, onClose }) {
@@ -106,7 +107,7 @@ function SidebarContent({ onNavClick }) {
           <span className="inline-block w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
           <span className="text-xs text-slate-400">Worker active</span>
         </div>
-        <p className="text-xs text-slate-300 mt-1">NMS v0.2.0 — Fase 2</p>
+        <p className="text-xs text-slate-300 mt-1">NMS v0.2.0 - Fase 2</p>
       </div>
     </div>
   )

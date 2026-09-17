@@ -40,3 +40,20 @@ func Close() {
 		_ = DB.Close()
 	}
 }
+
+// GetSetting retrieves a setting value from the settings table by key.
+func GetSetting(key string) (string, error) {
+	var value sql.NullString
+	query := "SELECT value FROM settings WHERE `key` = ? LIMIT 1"
+	err := DB.QueryRow(query, key).Scan(&value)
+	if err != nil {
+		if err == sql.ErrNoRows {
+			return "", nil // Not found, return empty string
+		}
+		return "", err
+	}
+	if value.Valid {
+		return value.String, nil
+	}
+	return "", nil
+}

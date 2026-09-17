@@ -34,10 +34,12 @@ class TopologyResource extends JsonResource
             'data'   => [
                 'ip_address'   => $device->ip_address,
                 'type'         => $device->type,
+                'device_role'  => $device->device_role,
                 'vendor'       => $device->vendor,
                 'latency_ms'   => $device->latency_ms,
                 'last_seen_at' => $device->last_seen_at?->toIso8601String(),
                 'location'     => $device->location,
+                'icon_svg'     => $device->icon_svg,
             ],
         ];
     }

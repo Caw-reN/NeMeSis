@@ -54,7 +54,10 @@ api.interceptors.response.use(
       }
 
       case 404:
-        toast.warning('Resource not found.')
+        // Some endpoints handle their own 404 (e.g. metrics panels with empty state UI)
+        if (!error.config?._skipGlobalError) {
+          toast.warning('Resource not found.')
+        }
         break
 
       case 500:

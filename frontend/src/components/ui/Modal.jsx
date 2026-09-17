@@ -3,13 +3,13 @@ import { motion, AnimatePresence } from 'framer-motion'
 import { X } from 'lucide-react'
 
 /**
- * Modal — Radix Dialog with Framer Motion scale-in animation.
+ * Modal - Radix Dialog with Framer Motion scale-in animation.
  *
  * Props:
- *   open, onOpenChange — controlled state
- *   title, description — optional header text
- *   children — modal body
- *   maxWidth — Tailwind class e.g. 'max-w-lg' (default)
+ *   open, onOpenChange - controlled state
+ *   title, description - optional header text
+ *   children - modal body
+ *   maxWidth - Tailwind class e.g. 'max-w-lg' (default)
  */
 export default function Modal({ open, onOpenChange, title, description, children, maxWidth = 'max-w-lg' }) {
   return (

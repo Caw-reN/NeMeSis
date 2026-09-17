@@ -7,9 +7,12 @@ import DashboardPage  from './pages/DashboardPage'
 import DevicesPage    from './pages/DevicesPage'
 import DeviceDetailPage from './pages/DeviceDetailPage'
 import TopologyPage   from './pages/TopologyPage'
+import AreaPage       from './pages/AreaPage'
+import AreaCanvasPage from './pages/AreaCanvasPage'
+import SettingsPage   from './pages/SettingsPage'
 
 /**
- * ProtectedRoute — redirects unauthenticated users to /login.
+ * ProtectedRoute - redirects unauthenticated users to /login.
  */
 function ProtectedRoute({ children }) {
   const { isAuthenticated } = useAuth()
@@ -27,7 +30,7 @@ function AppRoutes() {
         element={isAuthenticated ? <Navigate to="/dashboard" replace /> : <LoginPage />}
       />
 
-      {/* Protected — wrapped in AppLayout */}
+      {/* Protected - wrapped in AppLayout */}
       <Route
         path="/"
         element={
@@ -41,6 +44,9 @@ function AppRoutes() {
         <Route path="devices"   element={<DevicesPage />}   />
         <Route path="devices/:id" element={<DeviceDetailPage />} />
         <Route path="topology"  element={<TopologyPage />}  />
+        <Route path="areas"     element={<AreaPage />}      />
+        <Route path="areas/:id" element={<AreaCanvasPage />} />
+        <Route path="settings"  element={<SettingsPage />} />
       </Route>
 
       {/* 404 fallback */}
@@ -53,7 +59,7 @@ export default function App() {
   return (
     <BrowserRouter>
       <AuthProvider>
-        {/* Global toast notifications — always mounted */}
+        {/* Global toast notifications - always mounted */}
         <ToastContainer />
         <AppRoutes />
       </AuthProvider>

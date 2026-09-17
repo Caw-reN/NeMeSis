@@ -15,6 +15,7 @@ class Device extends Model
         'name',
         'ip_address',
         'type',
+        'device_role',
         'vendor',
         'status',
         'snmp_enabled',
@@ -26,6 +27,10 @@ class Device extends Model
         'is_active',
         'last_seen_at',
         'latency_ms',
+        'area_id',
+        'icon_svg',
+        'map_x',
+        'map_y',
     ];
 
     protected $casts = [
@@ -126,5 +131,15 @@ class Device extends Model
     public function scopeSnmpEnabled($query)
     {
         return $query->where('snmp_enabled', true);
+    }
+
+    public function area()
+    {
+        return $this->belongsTo(Area::class);
+    }
+
+    public function deviceType()
+    {
+        return $this->belongsTo(DeviceType::class, 'type', 'name');
     }
 }

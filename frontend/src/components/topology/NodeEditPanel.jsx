@@ -1,15 +1,16 @@
 import { useState, useEffect } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { X, Save, Pencil } from 'lucide-react'
+import CustomSelect from '../ui/CustomSelect'
 
 /**
- * NodeEditPanel — floats next to the NodeInfoPanel to allow quick editing of basic device details.
+ * NodeEditPanel - floats next to the NodeInfoPanel to allow quick editing of basic device details.
  *
  * Props:
- *   node     — device object
- *   position — { x, y } base coordinates (will be shifted right)
- *   onSave   — callback with (id, data) to update the backend
- *   onClose  — callback to cancel
+ *   node     - device object
+ *   position - { x, y } base coordinates (will be shifted right)
+ *   onSave   - callback with (id, data) to update the backend
+ *   onClose  - callback to cancel
  */
 export default function NodeEditPanel({ node, position, onSave, onClose }) {
   const [saving, setSaving] = useState(false)
@@ -100,30 +101,30 @@ export default function NodeEditPanel({ node, position, onSave, onClose }) {
               <div className="grid grid-cols-2 gap-2">
                 <div>
                   <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1">Type</label>
-                  <select
+                  <CustomSelect
                     value={form.type}
-                    onChange={e => setForm({ ...form, type: e.target.value })}
-                    className="w-full text-sm border border-slate-200 rounded-xl px-2 py-2 outline-none focus:ring-2 focus:ring-indigo-500 transition bg-slate-50"
-                  >
-                    <option value="router">Router</option>
-                    <option value="switch">Switch</option>
-                    <option value="server">Server</option>
-                    <option value="ap">AP</option>
-                    <option value="firewall">Firewall</option>
-                    <option value="other">Other</option>
-                  </select>
+                    onChange={v => setForm({ ...form, type: v })}
+                    options={[
+                      { label: 'Router', value: 'router' },
+                      { label: 'Switch', value: 'switch' },
+                      { label: 'Server', value: 'server' },
+                      { label: 'AP', value: 'ap' },
+                      { label: 'Firewall', value: 'firewall' },
+                      { label: 'Other', value: 'other' }
+                    ]}
+                  />
                 </div>
                 <div>
                   <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1">Vendor</label>
-                  <select
+                  <CustomSelect
                     value={form.vendor}
-                    onChange={e => setForm({ ...form, vendor: e.target.value })}
-                    className="w-full text-sm border border-slate-200 rounded-xl px-2 py-2 outline-none focus:ring-2 focus:ring-indigo-500 transition bg-slate-50"
-                  >
-                    <option value="mikrotik">Mikrotik</option>
-                    <option value="cisco">Cisco</option>
-                    <option value="generic">Generic</option>
-                  </select>
+                    onChange={v => setForm({ ...form, vendor: v })}
+                    options={[
+                      { label: 'Mikrotik', value: 'mikrotik' },
+                      { label: 'Cisco', value: 'cisco' },
+                      { label: 'Generic', value: 'generic' }
+                    ]}
+                  />
                 </div>
               </div>
 

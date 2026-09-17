@@ -8,6 +8,7 @@ import (
 
 	"github.com/Caw-reN/NeMeSis/worker/internal/config"
 	"github.com/Caw-reN/NeMeSis/worker/internal/database"
+	"github.com/Caw-reN/NeMeSis/worker/internal/notifier"
 	"github.com/Caw-reN/NeMeSis/worker/internal/scanner"
 	"github.com/Caw-reN/NeMeSis/worker/internal/snmp"
 	"github.com/Caw-reN/NeMeSis/worker/pkg/logger"
@@ -45,7 +46,12 @@ func main() {
 	signal.Notify(quit, syscall.SIGINT, syscall.SIGTERM)
 
 	// -------------------------------------------------------------------------
-	// 4. Start Polling Loop
+	// 4. Start Telegram Bot Listener
+	// -------------------------------------------------------------------------
+	go notifier.StartBotListener()
+
+	// -------------------------------------------------------------------------
+	// 5. Start Polling Loop
 	// -------------------------------------------------------------------------
 	logger.Info("Starting polling loop...")
 	ticker := time.NewTicker(time.Duration(cfg.PollIntervalSeconds) * time.Second)
@@ -97,7 +103,13 @@ func runScanCycle(cfg *config.Config) {
 	// Step 4: SNMP polling for devices that are UP and have SNMP enabled
 	for _, result := range results {
 		if result.PingOK && result.Device.SNMPEnabled {
-			go snmp.PollDevice(result.Device)
+			if result.Device.Vendor == "server" {
+				// VPS/Linux server — poll detailed metrics (CPU, RAM, disk, net)
+				go snmp.PollVpsMetrics(result.Device)
+			} else {
+				// Network device — poll basic sysDescr/sysName/uptime
+				go snmp.PollDevice(result.Device)
+			}
 		}
 	}
 

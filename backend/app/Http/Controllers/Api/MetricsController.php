@@ -116,7 +116,7 @@ class MetricsController extends Controller
             ], 422);
         }
 
-        $service = new CiscoSshService($device->ip_address, $creds['ssh_port']);
+        $service = new CiscoSshService($device->ip_address, $creds['ssh_port'], 5);
 
         try {
             $service->connect($creds['ssh_user'], $creds['ssh_pass'], $creds['enable_pass']);

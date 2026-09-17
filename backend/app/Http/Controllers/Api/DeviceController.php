@@ -35,7 +35,7 @@ class DeviceController extends Controller
                         ->orWhere('location', 'like', "%{$s}%")
                 )
             )
-            ->latest()
+            ->oldest()
             ->paginate($request->per_page ?? 20);
 
         return DeviceResource::collection($devices);
@@ -48,6 +48,10 @@ class DeviceController extends Controller
     public function store(StoreDeviceRequest $request): JsonResponse
     {
         $data = $request->validated();
+
+        if ($request->hasFile('icon_file')) {
+            $data['icon_svg'] = $this->processIconUpload($request->file('icon_file'));
+        }
 
         // Extract credentials before passing to model
         // The Device model's setCredentialsAttribute will handle encryption
@@ -89,7 +93,13 @@ class DeviceController extends Controller
      */
     public function update(UpdateDeviceRequest $request, Device $device): JsonResponse
     {
-        $device->update($request->validated());
+        $data = $request->validated();
+
+        if ($request->hasFile('icon_file')) {
+            $data['icon_svg'] = $this->processIconUpload($request->file('icon_file'));
+        }
+
+        $device->update($data);
 
         DeviceLog::create([
             'device_id'  => $device->id,
@@ -115,6 +125,24 @@ class DeviceController extends Controller
 
         return response()->json([
             'message' => "Device '{$deviceName}' ({$deviceIp}) berhasil dihapus.",
+        ]);
+    }
+
+    /**
+     * DELETE /api/devices/bulk
+     * Remove multiple devices.
+     */
+    public function bulkDestroy(Request $request): JsonResponse
+    {
+        $request->validate([
+            'ids'   => ['required', 'array'],
+            'ids.*' => ['integer', 'exists:devices,id'],
+        ]);
+
+        $count = Device::whereIn('id', $request->ids)->delete();
+
+        return response()->json([
+            'message' => "Berhasil menghapus {$count} perangkat.",
         ]);
     }
 
@@ -229,5 +257,48 @@ class DeviceController extends Controller
             'mac'     => null,
             'running' => null,
         ], $names);
+    }
+
+    /**
+     * Process icon upload, optionally removing background using python script
+     */
+    protected function processIconUpload($file): string
+    {
+        if ($file->getClientOriginalExtension() === 'svg') {
+            return file_get_contents($file->getRealPath());
+        }
+
+        $tempInput = $file->getRealPath();
+        $tempOutput = tempnam(sys_get_temp_dir(), 'icon_bg_') . '.png';
+        
+        $scriptPath = base_path('scripts/remove_bg.py');
+        $cmd = "python " . escapeshellarg($scriptPath) . " " . escapeshellarg($tempInput) . " " . escapeshellarg($tempOutput) . " 2>&1";
+        
+        $output = shell_exec($cmd);
+        \Illuminate\Support\Facades\Log::info("rembg output: " . $output);
+
+        if (file_exists($tempOutput) && filesize($tempOutput) > 0) {
+            $base64 = base64_encode(file_get_contents($tempOutput));
+            $mime = 'image/png';
+            $dimensions = getimagesize($tempOutput);
+            @unlink($tempOutput);
+        } else {
+            // Fallback to original if processing fails
+            $base64 = base64_encode(file_get_contents($tempInput));
+            $mime = $file->getClientMimeType();
+            $dimensions = getimagesize($tempInput);
+        }
+
+        $imgWidth = 24;
+        $xOffset = 0;
+        if ($dimensions && $dimensions[1] > 0) {
+            $imgWidth = 24 * ($dimensions[0] / $dimensions[1]);
+            if ($imgWidth > 75) {
+                $imgWidth = 75;
+            }
+            $xOffset = 12 - ($imgWidth / 2);
+        }
+
+        return "<image href=\"data:{$mime};base64,{$base64}\" x=\"{$xOffset}\" y=\"0\" width=\"{$imgWidth}\" height=\"24\" />";
     }
 }
