@@ -12,8 +12,8 @@ WORKDIR /build
 # Install dependencies for go-ping (needs gcc for raw socket support)
 RUN apk add --no-cache gcc musl-dev
 
-# Copy go.mod first for layer caching
-COPY go.mod ./
+# Copy go.mod and go.sum first for layer caching
+COPY go.mod go.sum ./
 RUN go mod download
 
 # Copy source and build
