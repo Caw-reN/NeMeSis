@@ -51,13 +51,10 @@ HHH   HHH  AAA AAA   LLLLLLLL  LLLLLLLL   OOOOOO     AAA AAA   DDDDD     MMM   M
       initial={{ opacity: 0, y: -20 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.5, ease: 'easeOut' }}
-      className="relative w-full h-48 md:h-64 rounded-3xl bg-white border border-slate-200 shadow-sm flex items-center justify-center mb-4"
+      className="relative w-full flex items-center justify-center mb-6 pt-4"
     >
-      {/* White overlay to make text pop more and blend edges */}
-      <div className="absolute inset-0 bg-gradient-to-t from-white/90 via-white/30 to-white/60 pointer-events-none rounded-3xl" />
-
       {/* Main Text */}
-      <div className="relative z-10 px-4 w-full flex flex-col items-center justify-center overflow-x-auto custom-scrollbar pb-2 pt-2">
+      <div className="relative z-10 px-4 w-full flex flex-col items-center justify-center overflow-x-auto custom-scrollbar pb-2">
         <pre 
           className="font-mono font-black text-[min(2.4vw,22px)] leading-[1.1] text-left text-transparent bg-clip-text bg-gradient-to-br from-emerald-500 to-emerald-700 drop-shadow-sm select-none min-w-max mx-auto"
         >
