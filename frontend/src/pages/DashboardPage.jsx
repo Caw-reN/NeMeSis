@@ -136,44 +136,44 @@ export default function DashboardPage() {
           </div>
 
           {loading ? (
-            <div className="flex flex-col gap-3">
+            <div className="grid grid-cols-2 gap-4">
               {[1,2,3,4].map(i => (
-                <div key={i} className="h-16 bg-slate-100 rounded-xl animate-pulse" />
+                <div key={i} className="h-24 bg-slate-100 rounded-xl animate-pulse" />
               ))}
             </div>
           ) : (
-            <div className="flex flex-col gap-3 max-h-[300px] overflow-y-auto pr-1 custom-scrollbar">
+            <div className="grid grid-cols-2 gap-3 max-h-[350px] overflow-y-auto pr-1">
               {data?.devices_by_type?.map((item, idx) => {
                 const colors = [
-                  'bg-blue-50 text-blue-600 border-blue-100',
-                  'bg-emerald-50 text-emerald-600 border-emerald-100',
-                  'bg-purple-50 text-purple-600 border-purple-100',
-                  'bg-amber-50 text-amber-600 border-amber-100',
-                  'bg-rose-50 text-rose-600 border-rose-100',
-                  'bg-cyan-50 text-cyan-600 border-cyan-100',
+                  { bg: 'bg-blue-50', text: 'text-blue-500' },
+                  { bg: 'bg-emerald-50', text: 'text-emerald-500' },
+                  { bg: 'bg-purple-50', text: 'text-purple-500' },
+                  { bg: 'bg-amber-50', text: 'text-amber-500' },
+                  { bg: 'bg-rose-50', text: 'text-rose-500' },
+                  { bg: 'bg-cyan-50', text: 'text-cyan-500' },
                 ];
-                const colorClass = colors[idx % colors.length];
+                const color = colors[idx % colors.length];
 
                 return (
                   <motion.div
                     key={item.type}
-                    whileHover={{ scale: 1.01, x: 4 }}
-                    className="group flex items-center justify-between p-3 rounded-xl border border-slate-100 bg-slate-50 hover:bg-white hover:shadow-[0_2px_8px_-2px_rgba(0,0,0,0.05)] hover:border-slate-200 transition-all cursor-default"
+                    whileHover={{ scale: 1.02, y: -2 }}
+                    className="group flex flex-col items-start gap-2 p-3.5 rounded-xl border border-slate-200 bg-white hover:border-slate-300 shadow-sm hover:shadow-md transition-all cursor-default"
                   >
-                    <div className="flex items-center gap-3">
-                      <div className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-lg border shadow-sm ${colorClass}`}>
-                        {item.icon_svg ? (
-                          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                            <g dangerouslySetInnerHTML={{ __html: item.icon_svg }} />
-                          </svg>
-                        ) : (
-                          <Server size={18} />
-                        )}
-                      </div>
-                      <span className="text-sm font-semibold text-slate-700 group-hover:text-slate-900 transition-colors line-clamp-1">{item.label}</span>
+                    <div className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-lg ${color.bg}`}>
+                      {item.icon_svg ? (
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={color.text}>
+                          <g dangerouslySetInnerHTML={{ __html: item.icon_svg }} />
+                        </svg>
+                      ) : (
+                        <Server size={18} className={color.text} />
+                      )}
                     </div>
-                    <div className="flex h-7 min-w-[2rem] items-center justify-center rounded-full bg-white px-2.5 text-xs font-bold text-slate-700 shadow-sm ring-1 ring-slate-200/50">
-                      {item.count}
+                    <div className="mt-1">
+                      <p className="text-xs font-medium text-slate-500 line-clamp-1" title={item.label}>{item.label}</p>
+                      <p className="font-display text-2xl font-extrabold text-slate-900 leading-tight mt-0.5">
+                        {item.count}
+                      </p>
                     </div>
                   </motion.div>
                 );
