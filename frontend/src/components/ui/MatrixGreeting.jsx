@@ -4,12 +4,12 @@ import { motion } from 'framer-motion'
 export default function MatrixGreeting() {
   // Scramble text state
   const targetAscii = `
-HHH   HHH    AAA     LLL       LLL        OOOOOO                 AAA     DDDDD     MMM   MMM  III  NNN   NNN    !!! 
-HHH   HHH   AAAAA    LLL       LLL       OOO  OOO                AAAAA    DDD DDD   MMMM MMMM  III  NNNN  NNN    !!! 
-HHHHHHHHH  AAA AAA   LLL       LLL       OOO  OOO               AAA AAA   DDD  DDD  MMM M MMM  III  NNN N NNN    !!! 
-HHH   HHH  AAAAAAA   LLL       LLL       OOO  OOO               AAAAAAA   DDD  DDD  MMM   MMM  III  NNN  NNNN    !!! 
-HHH   HHH  AAA AAA   LLLLLLLL  LLLLLLLL  OOO  OOO     ,,         AAA AAA   DDD DDD   MMM   MMM  III  NNN   NNN        
-HHH   HHH  AAA AAA   LLLLLLLL  LLLLLLLL   OOOOOO     ,,          AAA AAA   DDDDD     MMM   MMM  III  NNN   NNN    !!! 
+HHH    HHH   AAAA    LLL       LLL        OOOOOO                AAAA    DDDDD    MMM     MMM III NNN     NNN    !!! 
+HHH    HHH  AAAAAA   LLL       LLL       OOO  OOO              AAAAAA   DDD DDD  MMMM   MMMM III NNNN    NNN    !!! 
+HHHHHHHHHH AAA  AAA  LLL       LLL       OOO  OOO             AAA  AAA  DDD  DDD MM MM MM MM III NN NN   NNN    !!! 
+HHH    HHH AAAAAAAA  LLL       LLL       OOO  OOO             AAAAAAAA  DDD  DDD MM  MMM  MM III NN  NN  NNN    !!! 
+HHH    HHH AAA  AAA  LLLLLLLL  LLLLLLLL  OOO  OOO   ,,        AAA  AAA  DDD DDD  MM   M   MM III NN   NN NNN        
+HHH    HHH AAA  AAA  LLLLLLLL  LLLLLLLL   OOOOOO   ,,         AAA  AAA  DDDDD    MM       MM III NN    NNNNN    !!! 
 `.substring(1) // remove leading newline
 
   const [displayText, setDisplayText] = useState("")
@@ -56,7 +56,7 @@ HHH   HHH  AAA AAA   LLLLLLLL  LLLLLLLL   OOOOOO     ,,          AAA AAA   DDDDD
       {/* Main Text */}
       <div className="relative z-10 px-4 w-full flex flex-col items-center justify-center overflow-x-auto custom-scrollbar pb-2">
         <pre 
-          className="font-mono font-light italic text-slate-800 text-[min(2.4vw,22px)] leading-[1.1] text-left select-none min-w-max mx-auto -skew-x-12"
+          className="font-mono font-light text-slate-800 text-[min(2.4vw,22px)] leading-[1.1] text-left select-none min-w-max mx-auto -skew-x-12"
         >
           {displayText}
         </pre>
