@@ -56,11 +56,11 @@ HHH   HHH  AAA AAA   LLLLLLLL  LLLLLLLL   OOOOOO     AAA AAA   DDDDD     MMM   M
       {/* Main Text */}
       <div className="relative z-10 px-4 w-full flex flex-col items-center justify-center overflow-x-auto custom-scrollbar pb-2">
         <pre 
-          className="font-mono font-light text-slate-800 text-[min(2.4vw,22px)] leading-[1.1] text-left select-none min-w-max mx-auto"
+          className="font-mono font-light italic text-slate-800 text-[min(2.4vw,22px)] leading-[1.1] text-left select-none min-w-max mx-auto"
         >
           {displayText}
         </pre>
-        <p className="mt-4 text-slate-500 font-mono text-xs md:text-sm tracking-widest uppercase font-light text-center w-full">
+        <p className="mt-4 text-slate-500 font-mono text-xs md:text-sm tracking-widest uppercase font-light italic text-center w-full">
           SYSTEM_READY_ // AWAITING_COMMAND
         </p>
       </div>
