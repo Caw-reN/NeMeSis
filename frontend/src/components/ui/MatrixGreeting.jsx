@@ -1,16 +1,16 @@
 import { useEffect, useRef, useState } from 'react'
 import { motion } from 'framer-motion'
-
 export default function MatrixGreeting() {
   const canvasRef = useRef(null)
   
   // Scramble text state
   const targetAscii = `
-H   H   A   L     L      OOO      A   DDDD  M   M  III  N   N   N   N M   M  SSS 
-H   H  A A  L     L     O   O    A A  D   D MM MM   I   NN  N   NN  N MM MM S    
-HHHHH AAAAA L     L     O   O   AAAAA D   D M M M   I   N N N   N N N M M M  SSS 
-H   H A   A L     L     O   O   A   A D   D M   M   I   N  NN   N  NN M   M     S
-H   H A   A LLLLL LLLLL  OOO    A   A DDDD  M   M  III  N   N   N   N M   M  SSS 
+HHH   HHH    AAA     LLL       LLL        OOOOOO       AAA     DDDDD     MMM   MMM  III  NNN   NNN    NNN   NNN  MMM   MMM   SSSSSS  
+HHH   HHH   AAAAA    LLL       LLL       OOO  OOO     AAAAA    DDD DDD   MMMM MMMM  III  NNNN  NNN    NNNN  NNN  MMMM MMMM  SSS      
+HHHHHHHHH  AAA AAA   LLL       LLL       OOO  OOO    AAA AAA   DDD  DDD  MMM M MMM  III  NNN N NNN    NNN N NNN  MMM M MMM   SSSSSS  
+HHH   HHH  AAAAAAA   LLL       LLL       OOO  OOO    AAAAAAA   DDD  DDD  MMM   MMM  III  NNN  NNNN    NNN  NNNN  MMM   MMM       SSS 
+HHH   HHH  AAA AAA   LLLLLLLL  LLLLLLLL  OOO  OOO    AAA AAA   DDD DDD   MMM   MMM  III  NNN   NNN    NNN   NNN  MMM   MMM  SSS  SSS 
+HHH   HHH  AAA AAA   LLLLLLLL  LLLLLLLL   OOOOOO     AAA AAA   DDDDD     MMM   MMM  III  NNN   NNN    NNN   NNN  MMM   MMM   SSSSSS  
 `.substring(1) // remove leading newline
 
   const [displayText, setDisplayText] = useState("")
