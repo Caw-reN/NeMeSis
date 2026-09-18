@@ -62,8 +62,8 @@ export default function MatrixGreeting() {
 
     // Draw the matrix rain
     const draw = () => {
-      // Black background with slight opacity to create trail effect
-      ctx.fillStyle = 'rgba(15, 23, 42, 0.1)' // Tailwind slate-900 with opacity
+      // White background with slight opacity to create trail effect
+      ctx.fillStyle = 'rgba(255, 255, 255, 0.15)' // White trail
       ctx.fillRect(0, 0, canvas.width, canvas.height)
 
       ctx.fillStyle = '#10b981' // Tailwind emerald-500
@@ -103,26 +103,25 @@ export default function MatrixGreeting() {
       initial={{ opacity: 0, y: -20 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.5, ease: 'easeOut' }}
-      className="relative w-full h-32 md:h-40 rounded-2xl overflow-hidden bg-slate-900 border border-slate-800 shadow-xl flex items-center justify-center mb-2"
+      className="relative w-full h-48 md:h-64 rounded-3xl overflow-hidden bg-white border border-slate-200 shadow-sm flex items-center justify-center mb-4"
     >
       {/* Canvas for Matrix Rain */}
       <canvas
         ref={canvasRef}
-        className="absolute inset-0 w-full h-full opacity-60"
+        className="absolute inset-0 w-full h-full opacity-50"
       />
       
-      {/* Dark overlay to make text pop more */}
-      <div className="absolute inset-0 bg-gradient-to-t from-slate-900/80 via-transparent to-slate-900/40" />
+      {/* White overlay to make text pop more and blend edges */}
+      <div className="absolute inset-0 bg-gradient-to-t from-white/90 via-white/30 to-white/60" />
 
       {/* Main Text */}
       <div className="relative z-10 text-center px-4">
         <h1 
-          className="font-display font-black text-3xl md:text-5xl lg:text-6xl tracking-tight text-transparent bg-clip-text bg-gradient-to-b from-emerald-300 to-emerald-600 drop-shadow-[0_0_15px_rgba(16,185,129,0.5)]"
-          style={{ textShadow: '0 0 20px rgba(16,185,129, 0.4)' }}
+          className="font-display font-black text-4xl md:text-6xl lg:text-7xl tracking-tight text-transparent bg-clip-text bg-gradient-to-br from-emerald-400 to-emerald-700 drop-shadow-[0_4px_10px_rgba(16,185,129,0.2)]"
         >
           {displayText}
         </h1>
-        <p className="mt-2 text-emerald-400/80 font-mono text-xs md:text-sm tracking-widest uppercase">
+        <p className="mt-3 text-emerald-600/90 font-mono text-xs md:text-sm tracking-widest uppercase font-semibold">
           SYSTEM_READY_ // AWAITING_COMMAND
         </p>
       </div>
