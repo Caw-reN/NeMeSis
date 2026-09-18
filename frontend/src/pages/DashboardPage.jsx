@@ -136,30 +136,48 @@ export default function DashboardPage() {
           </div>
 
           {loading ? (
-            <div className="space-y-3">
-              {[1,2,3].map(i => (
-                <div key={i} className="h-8 bg-slate-100 rounded-xl animate-pulse" />
+            <div className="flex flex-col gap-3">
+              {[1,2,3,4].map(i => (
+                <div key={i} className="h-16 bg-slate-100 rounded-xl animate-pulse" />
               ))}
             </div>
           ) : (
-            <div className="space-y-3">
-              {data?.devices_by_type?.map((item) => (
-                <div key={item.type} className="flex items-center justify-between py-2 border-b border-slate-50 last:border-0">
-                  <div className="flex items-center gap-3">
-                    <div className="w-8 h-8 bg-slate-50 rounded-lg flex items-center justify-center border border-slate-100">
-                      {item.icon_svg ? (
-                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-slate-600">
-                          <g dangerouslySetInnerHTML={{ __html: item.icon_svg }} />
-                        </svg>
-                      ) : (
-                        <Server size={14} className="text-slate-400" />
-                      )}
+            <div className="flex flex-col gap-3 max-h-[300px] overflow-y-auto pr-1 custom-scrollbar">
+              {data?.devices_by_type?.map((item, idx) => {
+                const colors = [
+                  'bg-blue-50 text-blue-600 border-blue-100',
+                  'bg-emerald-50 text-emerald-600 border-emerald-100',
+                  'bg-purple-50 text-purple-600 border-purple-100',
+                  'bg-amber-50 text-amber-600 border-amber-100',
+                  'bg-rose-50 text-rose-600 border-rose-100',
+                  'bg-cyan-50 text-cyan-600 border-cyan-100',
+                ];
+                const colorClass = colors[idx % colors.length];
+
+                return (
+                  <motion.div
+                    key={item.type}
+                    whileHover={{ scale: 1.01, x: 4 }}
+                    className="group flex items-center justify-between p-3 rounded-xl border border-slate-100 bg-slate-50 hover:bg-white hover:shadow-[0_2px_8px_-2px_rgba(0,0,0,0.05)] hover:border-slate-200 transition-all cursor-default"
+                  >
+                    <div className="flex items-center gap-3">
+                      <div className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-lg border shadow-sm ${colorClass}`}>
+                        {item.icon_svg ? (
+                          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                            <g dangerouslySetInnerHTML={{ __html: item.icon_svg }} />
+                          </svg>
+                        ) : (
+                          <Server size={18} />
+                        )}
+                      </div>
+                      <span className="text-sm font-semibold text-slate-700 group-hover:text-slate-900 transition-colors line-clamp-1">{item.label}</span>
                     </div>
-                    <span className="text-sm font-medium text-slate-700">{item.label}</span>
-                  </div>
-                  <span className="text-sm font-bold text-slate-900 bg-slate-100 px-2 py-0.5 rounded-md">{item.count}</span>
-                </div>
-              ))}
+                    <div className="flex h-7 min-w-[2rem] items-center justify-center rounded-full bg-white px-2.5 text-xs font-bold text-slate-700 shadow-sm ring-1 ring-slate-200/50">
+                      {item.count}
+                    </div>
+                  </motion.div>
+                );
+              })}
             </div>
           )}
         </motion.section>
