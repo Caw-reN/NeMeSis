@@ -158,13 +158,10 @@ export default function DashboardPage() {
                   <motion.div
                     key={item.type}
                     whileHover={{ scale: 1.03, y: -2 }}
-                    className="relative group overflow-hidden flex flex-col p-4 rounded-2xl border border-slate-200/60 bg-gradient-to-br from-white to-slate-50 hover:border-slate-300 shadow-[0_2px_10px_-4px_rgba(0,0,0,0.05)] hover:shadow-lg transition-all duration-300 cursor-default"
+                    className="relative group flex flex-col p-4 rounded-2xl border border-slate-200 bg-white hover:border-slate-300 shadow-sm hover:shadow-[0_4px_12px_-4px_rgba(0,0,0,0.1)] transition-all duration-300 cursor-default"
                   >
-                    {/* Glowing Blob Background */}
-                    <div className={`absolute -right-6 -top-6 w-24 h-24 rounded-full opacity-10 blur-2xl group-hover:opacity-20 transition-opacity duration-300 ${color.blob}`}></div>
-
-                    <div className="flex items-start justify-between w-full relative z-10">
-                      <div className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-xl shadow-sm border border-white ${color.bg}`}>
+                    <div className="flex items-start justify-between w-full">
+                      <div className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-xl shadow-sm border border-slate-100/50 ${color.bg}`}>
                         {item.icon_svg ? (
                           <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={color.text}>
                             <g dangerouslySetInnerHTML={{ __html: item.icon_svg }} />
@@ -173,12 +170,12 @@ export default function DashboardPage() {
                           <Server size={20} className={color.text} />
                         )}
                       </div>
-                      <span className="font-display text-2xl font-black text-slate-800 drop-shadow-sm">
+                      <span className="font-display text-2xl font-black text-slate-800">
                         {item.count}
                       </span>
                     </div>
 
-                    <div className="mt-3 relative z-10">
+                    <div className="mt-3">
                       <p className="text-sm font-bold text-slate-700 line-clamp-2 leading-tight group-hover:text-indigo-600 transition-colors" title={item.label}>{item.label}</p>
                     </div>
                   </motion.div>
