@@ -99,17 +99,25 @@ export default function SettingsPage() {
     e.preventDefault()
     setIsSubmitting(true)
 
-    const payload = {
-      name,
-      label,
+    const formData = new FormData()
+    formData.append('name', name)
+    formData.append('label', label)
+    if (file) {
+      formData.append('icon_file', file)
     }
 
     try {
       if (editTarget) {
-        await api.put(`/api/device_types/${editTarget.name}`, payload)
+        // Use POST with _method=PUT to support multipart/form-data for files in Laravel
+        formData.append('_method', 'PUT')
+        await api.post(`/api/device_types/${editTarget.name}`, formData, {
+          headers: { 'Content-Type': 'multipart/form-data' }
+        })
         toast.success('Tipe perangkat berhasil diupdate')
       } else {
-        await api.post('/api/device_types', payload)
+        await api.post('/api/device_types', formData, {
+          headers: { 'Content-Type': 'multipart/form-data' }
+        })
         toast.success('Tipe perangkat berhasil ditambahkan')
       }
       setIsModalOpen(false)
@@ -254,7 +262,23 @@ export default function SettingsPage() {
               onChange={e => setLabel(e.target.value)}
             />
           </div>
-
+          <div>
+            <label className="block text-sm font-medium text-slate-700 mb-1">Ikon Tipe Perangkat (Opsional)</label>
+            <div className="flex items-center gap-4 mt-1">
+              <div className="flex-1">
+                <label className="flex flex-col items-center justify-center w-full h-32 border-2 border-slate-300 border-dashed rounded-xl cursor-pointer bg-slate-50 hover:bg-slate-100 transition">
+                  <div className="flex flex-col items-center justify-center pt-5 pb-6">
+                    <Upload className="w-8 h-8 mb-3 text-slate-400" />
+                    <p className="mb-2 text-sm text-slate-500 font-medium">
+                      {file ? file.name : "Klik untuk upload gambar"}
+                    </p>
+                    <p className="text-xs text-slate-400">SVG, PNG, JPG (Disarankan PNG dengan latar transparan)</p>
+                  </div>
+                  <input type="file" className="hidden" accept=".svg,.png,.jpg,.jpeg" onChange={(e) => setFile(e.target.files[0])} />
+                </label>
+              </div>
+            </div>
+          </div>
           
           <div className="pt-4 flex justify-end gap-3">
             <button

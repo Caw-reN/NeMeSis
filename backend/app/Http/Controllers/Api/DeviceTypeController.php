@@ -15,6 +15,8 @@ class DeviceTypeController extends Controller
         return response()->json($types);
     }
 
+    use \App\Traits\ProcessesIconUploads;
+
     public function store(Request $request): JsonResponse
     {
         $data = $request->validate([
@@ -22,6 +24,10 @@ class DeviceTypeController extends Controller
             'label'     => ['required', 'string', 'max:100'],
             'icon_svg'  => ['nullable', 'string'],
         ]);
+
+        if ($request->hasFile('icon_file')) {
+            $data['icon_svg'] = $this->processIconUpload($request->file('icon_file'));
+        }
 
         $data['is_custom'] = true;
 
@@ -31,11 +37,14 @@ class DeviceTypeController extends Controller
 
     public function update(Request $request, DeviceType $deviceType): JsonResponse
     {
-
         $data = $request->validate([
             'label'     => ['required', 'string', 'max:100'],
             'icon_svg'  => ['nullable', 'string'],
         ]);
+
+        if ($request->hasFile('icon_file')) {
+            $data['icon_svg'] = $this->processIconUpload($request->file('icon_file'));
+        }
 
         $deviceType->update($data);
         return response()->json($deviceType);

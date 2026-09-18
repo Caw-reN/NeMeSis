@@ -25,7 +25,7 @@ class DeviceResource extends JsonResource
             'snmp_community' => $this->when($request->user()?->id, $this->snmp_community),
             'location'       => $this->location,
             'area_id'        => $this->area_id,
-            'icon_svg'       => $this->icon_svg,
+            'icon_svg'       => $this->icon_svg ?? $this->deviceType?->icon_svg,
             'description'    => $this->description,
             'last_seen_at'   => $this->last_seen_at?->toIso8601String(),
             'latency_ms'     => $this->latency_ms,

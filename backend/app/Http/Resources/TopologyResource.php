@@ -39,7 +39,7 @@ class TopologyResource extends JsonResource
                 'latency_ms'   => $device->latency_ms,
                 'last_seen_at' => $device->last_seen_at?->toIso8601String(),
                 'location'     => $device->location,
-                'icon_svg'     => $device->icon_svg,
+                'icon_svg'     => $device->icon_svg ?? $device->deviceType?->icon_svg,
             ],
         ];
     }
