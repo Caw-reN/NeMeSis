@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { motion }  from 'framer-motion'
-import { Monitor, CheckCircle2, XCircle, HelpCircle, TrendingUp, AlertTriangle, Clock } from 'lucide-react'
+import { Monitor, CheckCircle2, XCircle, HelpCircle, TrendingUp, AlertTriangle, Clock, Server } from 'lucide-react'
 import StatCard    from '../components/ui/StatCard'
 import { dashboardService } from '../services/dashboard.service'
 import { timeAgo }  from '../utils/helpers'
