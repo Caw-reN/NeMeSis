@@ -273,7 +273,7 @@ class DeviceController extends Controller
         
         $scriptPath = base_path('scripts/remove_bg.py');
         $pythonBin = file_exists('/opt/venv/bin/python') ? '/opt/venv/bin/python' : 'python';
-        $cmd = escapeshellcmd($pythonBin) . " " . escapeshellarg($scriptPath) . " " . escapeshellarg($tempInput) . " " . escapeshellarg($tempOutput) . " 2>&1";
+        $cmd = "ORT_DISABLE_THREAD_AFFINITY=1 " . escapeshellcmd($pythonBin) . " " . escapeshellarg($scriptPath) . " " . escapeshellarg($tempInput) . " " . escapeshellarg($tempOutput) . " 2>&1";
         
         $output = shell_exec($cmd);
         \Illuminate\Support\Facades\Log::info("rembg output: " . $output);
