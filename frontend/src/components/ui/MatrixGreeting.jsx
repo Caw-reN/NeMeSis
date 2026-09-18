@@ -1,9 +1,45 @@
-import { useEffect, useRef } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { motion } from 'framer-motion'
 
 export default function MatrixGreeting() {
   const canvasRef = useRef(null)
+  
+  // Scramble text state
+  const targetText = "HALLO ADMIN NMS"
+  const [displayText, setDisplayText] = useState("")
 
+  // Scramble effect
+  useEffect(() => {
+    let iteration = 0
+    const chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789@#$%^&*()"
+    
+    const interval = setInterval(() => {
+      setDisplayText(
+        targetText
+          .split("")
+          .map((letter, index) => {
+            if (index < iteration) {
+              return targetText[index]
+            }
+            if (letter === " " && Math.random() > 0.5) {
+              return " "
+            }
+            return chars[Math.floor(Math.random() * chars.length)]
+          })
+          .join("")
+      )
+
+      if (iteration >= targetText.length) {
+        clearInterval(interval)
+      }
+
+      iteration += 1 / 4 // 4 frames per letter
+    }, 40) // speed
+
+    return () => clearInterval(interval)
+  }, [])
+
+  // Canvas Matrix Rain
   useEffect(() => {
     const canvas = canvasRef.current
     if (!canvas) return
@@ -84,7 +120,7 @@ export default function MatrixGreeting() {
           className="font-display font-black text-3xl md:text-5xl lg:text-6xl tracking-tight text-transparent bg-clip-text bg-gradient-to-b from-emerald-300 to-emerald-600 drop-shadow-[0_0_15px_rgba(16,185,129,0.5)]"
           style={{ textShadow: '0 0 20px rgba(16,185,129, 0.4)' }}
         >
-          HALLO ADMIN NMS
+          {displayText}
         </h1>
         <p className="mt-2 text-emerald-400/80 font-mono text-xs md:text-sm tracking-widest uppercase">
           SYSTEM_READY_ // AWAITING_COMMAND
