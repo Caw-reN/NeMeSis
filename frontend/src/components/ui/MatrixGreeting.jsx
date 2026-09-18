@@ -123,13 +123,13 @@ HHH   HHH  AAA AAA   LLLLLLLL  LLLLLLLL   OOOOOO     AAA AAA   DDDDD     MMM   M
       <div className="absolute inset-0 bg-gradient-to-t from-white/90 via-white/30 to-white/60" />
 
       {/* Main Text */}
-      <div className="relative z-10 text-center px-4 w-full flex flex-col items-center justify-center overflow-hidden">
+      <div className="relative z-10 px-4 w-full flex flex-col items-center justify-center overflow-x-auto custom-scrollbar pb-2 pt-2">
         <pre 
-          className="font-mono font-black text-[min(1.4vw,14px)] leading-[1.1] text-left text-transparent bg-clip-text bg-gradient-to-br from-emerald-500 to-emerald-700 drop-shadow-sm select-none"
+          className="font-mono font-black text-[min(2.4vw,22px)] leading-[1.1] text-left text-transparent bg-clip-text bg-gradient-to-br from-emerald-500 to-emerald-700 drop-shadow-sm select-none min-w-max mx-auto"
         >
           {displayText}
         </pre>
-        <p className="mt-4 text-emerald-600/90 font-mono text-xs md:text-sm tracking-widest uppercase font-semibold">
+        <p className="mt-4 text-emerald-600/90 font-mono text-xs md:text-sm tracking-widest uppercase font-semibold text-center w-full">
           SYSTEM_READY_ // AWAITING_COMMAND
         </p>
       </div>
