@@ -17,6 +17,7 @@ type DeviceRecord struct {
 	SNMPEnabled   bool
 	SNMPCommunity sql.NullString
 	SNMPVersion   string
+	Type          string
 }
 
 // ScanResultRecord holds the result of a port scan to be upserted.
@@ -32,7 +33,7 @@ type ScanResultRecord struct {
 // GetActiveDevices fetches all active devices that need to be scanned.
 func GetActiveDevices() ([]DeviceRecord, error) {
 	query := `
-		SELECT id, name, ip_address, vendor, status, snmp_enabled, snmp_community, snmp_version
+		SELECT id, name, ip_address, vendor, status, snmp_enabled, snmp_community, snmp_version, type
 		FROM devices
 		WHERE is_active = 1 AND ip_address IS NOT NULL
 	`
@@ -47,7 +48,7 @@ func GetActiveDevices() ([]DeviceRecord, error) {
 		var d DeviceRecord
 		err := rows.Scan(
 			&d.ID, &d.Name, &d.IPAddress, &d.Vendor,
-			&d.CurrentStatus, &d.SNMPEnabled, &d.SNMPCommunity, &d.SNMPVersion,
+			&d.CurrentStatus, &d.SNMPEnabled, &d.SNMPCommunity, &d.SNMPVersion, &d.Type,
 		)
 		if err != nil {
 			return nil, fmt.Errorf("GetActiveDevices scan error: %w", err)

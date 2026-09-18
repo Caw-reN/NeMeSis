@@ -118,18 +118,36 @@ func handlePerangkatCommand(token string, chatID int64) {
 	var sb strings.Builder
 	sb.WriteString("📊 *Daftar Status Perangkat*\n\n")
 
+	// Group devices by type
+	grouped := make(map[string][]database.DeviceRecord)
 	for _, d := range devices {
-		icon := "✅"
-		if d.CurrentStatus == "down" {
-			icon = "🚨"
+		t := d.Type
+		if t == "" {
+			t = "Uncategorized"
 		}
-
-		ip := d.IPAddress
-		if ip == "" {
-			ip = "No IP"
+		// capitalize first letter
+		if len(t) > 0 {
+			t = strings.ToUpper(t[:1]) + t[1:]
 		}
+		grouped[t] = append(grouped[t], d)
+	}
 
-		sb.WriteString(fmt.Sprintf("%s *%s*\n└ `%s`\n\n", icon, d.Name, ip))
+	for devType, devs := range grouped {
+		sb.WriteString(fmt.Sprintf("🔹 *%s*\n", devType))
+		for _, d := range devs {
+			icon := "✅"
+			if d.CurrentStatus == "down" {
+				icon = "🚨"
+			}
+
+			ip := d.IPAddress
+			if ip == "" {
+				ip = "No IP"
+			}
+
+			sb.WriteString(fmt.Sprintf("%s %s (`%s`)\n", icon, d.Name, ip))
+		}
+		sb.WriteString("\n")
 	}
 
 	SendMessage(token, fmt.Sprintf("%d", chatID), sb.String())
