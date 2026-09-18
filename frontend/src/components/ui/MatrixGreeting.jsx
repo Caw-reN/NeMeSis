@@ -4,12 +4,12 @@ import { motion } from 'framer-motion'
 export default function MatrixGreeting() {
   // Scramble text state
   const targetAscii = `
-HHH   HHH    AAA     LLL       LLL        OOOOOO           AAA     DDDDD     MMM   MMM  III  NNN   NNN        NNN   NNN  MMM   MMM   SSSSSS  
-HHH   HHH   AAAAA    LLL       LLL       OOO  OOO         AAAAA    DDD DDD   MMMM MMMM  III  NNNN  NNN        NNNN  NNN  MMMM MMMM  SSS      
-HHHHHHHHH  AAA AAA   LLL       LLL       OOO  OOO        AAA AAA   DDD  DDD  MMM M MMM  III  NNN N NNN        NNN N NNN  MMM M MMM   SSSSSS  
-HHH   HHH  AAAAAAA   LLL       LLL       OOO  OOO        AAAAAAA   DDD  DDD  MMM   MMM  III  NNN  NNNN        NNN  NNNN  MMM   MMM       SSS 
-HHH   HHH  AAA AAA   LLLLLLLL  LLLLLLLL  OOO  OOO        AAA AAA   DDD DDD   MMM   MMM  III  NNN   NNN        NNN   NNN  MMM   MMM  SSS  SSS 
-HHH   HHH  AAA AAA   LLLLLLLL  LLLLLLLL   OOOOOO          AAA AAA   DDDDD     MMM   MMM  III  NNN   NNN        NNN   NNN  MMM   MMM   SSSSSS  
+HHH   HHH    AAA     LLL       LLL        OOOOOO                 AAA     DDDDD     MMM   MMM  III  NNN   NNN    !!! 
+HHH   HHH   AAAAA    LLL       LLL       OOO  OOO                AAAAA    DDD DDD   MMMM MMMM  III  NNNN  NNN    !!! 
+HHHHHHHHH  AAA AAA   LLL       LLL       OOO  OOO               AAA AAA   DDD  DDD  MMM M MMM  III  NNN N NNN    !!! 
+HHH   HHH  AAAAAAA   LLL       LLL       OOO  OOO               AAAAAAA   DDD  DDD  MMM   MMM  III  NNN  NNNN    !!! 
+HHH   HHH  AAA AAA   LLLLLLLL  LLLLLLLL  OOO  OOO     ,,         AAA AAA   DDD DDD   MMM   MMM  III  NNN   NNN        
+HHH   HHH  AAA AAA   LLLLLLLL  LLLLLLLL   OOOOOO     ,,          AAA AAA   DDDDD     MMM   MMM  III  NNN   NNN    !!! 
 `.substring(1) // remove leading newline
 
   const [displayText, setDisplayText] = useState("")
