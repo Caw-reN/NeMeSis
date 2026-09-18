@@ -78,3 +78,42 @@ func InsertVpsMetrics(r VpsMetricsRecord) error {
 	}
 	return nil
 }
+
+// GetLatestVpsMetrics retrieves the most recent VPS metrics for a given device.
+func GetLatestVpsMetrics(deviceID int64) (*VpsMetricsRecord, error) {
+	query := `
+		SELECT
+			cpu_user, cpu_system, cpu_idle,
+			mem_total_kb, mem_free_kb, mem_cached_kb,
+			disk_partitions, net_interfaces,
+			uptime_sec, sys_descr, sys_name, polled_at
+		FROM vps_metrics
+		WHERE device_id = ?
+		ORDER BY polled_at DESC
+		LIMIT 1
+	`
+	row := DB.QueryRow(query, deviceID)
+
+	var r VpsMetricsRecord
+	r.DeviceID = deviceID
+	var diskJSON, netJSON string
+
+	err := row.Scan(
+		&r.CpuUser, &r.CpuSystem, &r.CpuIdle,
+		&r.MemTotalKB, &r.MemFreeKB, &r.MemCachedKB,
+		&diskJSON, &netJSON,
+		&r.UptimeSec, &r.SysDescr, &r.SysName, &r.PolledAt,
+	)
+	if err != nil {
+		return nil, err
+	}
+
+	if diskJSON != "" {
+		_ = json.Unmarshal([]byte(diskJSON), &r.DiskPartitions)
+	}
+	if netJSON != "" {
+		_ = json.Unmarshal([]byte(netJSON), &r.NetInterfaces)
+	}
+
+	return &r, nil
+}

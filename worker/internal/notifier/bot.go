@@ -22,6 +22,21 @@ type TelegramUpdate struct {
 		} `json:"chat"`
 		Text string `json:"text"`
 	} `json:"message"`
+	CallbackQuery *CallbackQuery `json:"callback_query,omitempty"`
+}
+
+type CallbackQuery struct {
+	ID      string `json:"id"`
+	From    struct {
+		ID int64 `json:"id"`
+	} `json:"from"`
+	Message struct {
+		MessageID int `json:"message_id"`
+		Chat      struct {
+			ID int64 `json:"id"`
+		} `json:"chat"`
+	} `json:"message"`
+	Data string `json:"data"`
 }
 
 type TelegramUpdateResponse struct {
@@ -79,6 +94,17 @@ func StartBotListener() {
 		for _, update := range updateResp.Result {
 			offset = update.UpdateID + 1
 
+			// Handle callback queries
+			if update.CallbackQuery != nil {
+				chatID := update.CallbackQuery.Message.Chat.ID
+				if allowedChatID != 0 && chatID != allowedChatID {
+					logger.Warnf("Unauthorized bot callback attempt from Chat ID: %d", chatID)
+					continue
+				}
+				handleCallbackQuery(token, chatID, update.CallbackQuery.Data)
+				continue
+			}
+
 			// Ignore empty messages
 			text := strings.TrimSpace(update.Message.Text)
 			chatID := update.Message.Chat.ID
@@ -96,6 +122,8 @@ func StartBotListener() {
 			// Handle commands
 			if strings.HasPrefix(text, "/perangkat") {
 				handlePerangkatCommand(token, chatID)
+			} else if strings.HasPrefix(text, "/status_server") {
+				handleStatusServerCommand(token, chatID)
 			} else if strings.HasPrefix(text, "/status") {
 				handleStatusCommand(token, chatID)
 			}
@@ -182,4 +210,97 @@ func handleStatusCommand(token string, chatID int64) {
 	)
 
 	SendMessage(token, fmt.Sprintf("%d", chatID), msg)
+}
+
+func handleStatusServerCommand(token string, chatID int64) {
+	devices, err := database.GetActiveDevices()
+	if err != nil {
+		SendMessage(token, fmt.Sprintf("%d", chatID), "❌ Gagal mengambil data perangkat dari database.")
+		return
+	}
+
+	var servers []database.DeviceRecord
+	for _, d := range devices {
+		if strings.ToLower(d.Type) == "linux" || strings.ToLower(d.Type) == "vps" || strings.ToLower(d.Type) == "server" {
+			servers = append(servers, d)
+		}
+	}
+
+	if len(servers) == 0 {
+		SendMessage(token, fmt.Sprintf("%d", chatID), "ℹ️ Tidak ada server (VPS/Linux) yang aktif/diawasi.")
+		return
+	}
+
+	msg := "🖥 *Pilih Server*\nSilakan pilih server untuk melihat statistik resource-nya:"
+	
+	var inlineKeyboard [][]map[string]string
+	for i, s := range servers {
+		row := []map[string]string{
+			{
+				"text": fmt.Sprintf("%d. %s", i+1, s.Name),
+				"callback_data": fmt.Sprintf("server_stats_%d", s.ID),
+			},
+		}
+		inlineKeyboard = append(inlineKeyboard, row)
+	}
+
+	SendMessageWithInlineKeyboard(token, fmt.Sprintf("%d", chatID), msg, inlineKeyboard)
+}
+
+func handleCallbackQuery(token string, chatID int64, data string) {
+	if strings.HasPrefix(data, "server_stats_") {
+		idStr := strings.TrimPrefix(data, "server_stats_")
+		deviceID, err := strconv.ParseInt(idStr, 10, 64)
+		if err != nil {
+			SendMessage(token, fmt.Sprintf("%d", chatID), "❌ ID Server tidak valid.")
+			return
+		}
+
+		metrics, err := database.GetLatestVpsMetrics(deviceID)
+		if err != nil {
+			SendMessage(token, fmt.Sprintf("%d", chatID), "❌ Belum ada data statistik untuk server ini atau server sedang offline.")
+			return
+		}
+
+		// Hitung persentase RAM
+		var ramUsage float64 = 0
+		if metrics.MemTotalKB > 0 {
+			usedKB := metrics.MemTotalKB - metrics.MemFreeKB - metrics.MemCachedKB
+			ramUsage = float64(usedKB) / float64(metrics.MemTotalKB) * 100
+		}
+
+		// Hitung disk usage
+		var totalDisk, usedDisk int64
+		for _, d := range metrics.DiskPartitions {
+			totalDisk += d.TotalKB
+			usedDisk += d.UsedKB
+		}
+		var diskUsage float64 = 0
+		if totalDisk > 0 {
+			diskUsage = float64(usedDisk) / float64(totalDisk) * 100
+		}
+
+		uptimeDuration := time.Duration(metrics.UptimeSec) * time.Second
+		days := int(uptimeDuration.Hours()) / 24
+		hours := int(uptimeDuration.Hours()) % 24
+		minutes := int(uptimeDuration.Minutes()) % 60
+
+		msg := fmt.Sprintf(
+			"📊 *Statistik Resource Server*\n\n"+
+				"🖥 *Hostname:* %s\n"+
+				"⏱ *Uptime:* %d hari, %d jam, %d menit\n\n"+
+				"⚙️ *CPU Usage:* %.2f%%\n"+
+				"🧠 *RAM Usage:* %.2f%% (Total: %d MB)\n"+
+				"💾 *Disk Usage:* %.2f%% (Total: %d GB)\n\n"+
+				"_Data diambil pada: %s_",
+			metrics.SysName,
+			days, hours, minutes,
+			metrics.CpuUser+metrics.CpuSystem,
+			ramUsage, metrics.MemTotalKB/1024,
+			diskUsage, totalDisk/(1024*1024),
+			metrics.PolledAt.Format("2006-01-02 15:04:05"),
+		)
+
+		SendMessage(token, fmt.Sprintf("%d", chatID), msg)
+	}
 }

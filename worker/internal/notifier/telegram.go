@@ -60,6 +60,7 @@ func SendTelegramAlert(device database.DeviceRecord, status string, latency floa
 				{
 					{"text": "/status"},
 					{"text": "/perangkat"},
+					{"text": "/status_server"},
 				},
 			},
 			"resize_keyboard": true,
@@ -101,6 +102,7 @@ func SendMessage(token, chatID, text string) {
 				{
 					{"text": "/status"},
 					{"text": "/perangkat"},
+					{"text": "/status_server"},
 				},
 			},
 			"resize_keyboard": true,
@@ -120,6 +122,39 @@ func SendMessage(token, chatID, text string) {
 	resp, err := client.Do(req)
 	if err != nil {
 		logger.Errorf("Failed to send Telegram message: %v", err)
+		return
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		logger.Errorf("Telegram API returned non-OK status: %d", resp.StatusCode)
+	}
+}
+
+// SendMessageWithInlineKeyboard sends a message with an inline keyboard.
+func SendMessageWithInlineKeyboard(token, chatID, text string, inlineKeyboard [][]map[string]string) {
+	payload := map[string]interface{}{
+		"chat_id":    chatID,
+		"text":       text,
+		"parse_mode": "Markdown",
+		"reply_markup": map[string]interface{}{
+			"inline_keyboard": inlineKeyboard,
+		},
+	}
+	payloadBytes, _ := json.Marshal(payload)
+
+	url := fmt.Sprintf("https://api.telegram.org/bot%s/sendMessage", token)
+	req, err := http.NewRequest("POST", url, bytes.NewBuffer(payloadBytes))
+	if err != nil {
+		logger.Errorf("Failed to create Telegram request: %v", err)
+		return
+	}
+	req.Header.Set("Content-Type", "application/json")
+
+	client := &http.Client{Timeout: 10 * time.Second}
+	resp, err := client.Do(req)
+	if err != nil {
+		logger.Errorf("Failed to send Telegram message with inline keyboard: %v", err)
 		return
 	}
 	defer resp.Body.Close()

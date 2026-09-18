@@ -2,7 +2,6 @@ import { useEffect, useState } from 'react'
 import { motion }  from 'framer-motion'
 import { Monitor, CheckCircle2, XCircle, HelpCircle, TrendingUp, AlertTriangle, Clock, Server } from 'lucide-react'
 import StatCard    from '../components/ui/StatCard'
-import MatrixGreeting from '../components/ui/MatrixGreeting'
 import { dashboardService } from '../services/dashboard.service'
 import { timeAgo }  from '../utils/helpers'
 
@@ -35,8 +34,6 @@ export default function DashboardPage() {
       transition={{ duration: 0.22 }}
       className="space-y-6"
     >
-      <MatrixGreeting />
-
       {/* KPI Cards */}
       <section>
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
