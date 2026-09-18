@@ -56,7 +56,7 @@ HHH   HHH  AAA AAA   LLLLLLLL  LLLLLLLL   OOOOOO     AAA AAA   DDDDD     MMM   M
       {/* Main Text */}
       <div className="relative z-10 px-4 w-full flex flex-col items-center justify-center overflow-x-auto custom-scrollbar pb-2">
         <pre 
-          className="font-mono font-light italic text-slate-800 text-[min(2.4vw,22px)] leading-[1.1] text-left select-none min-w-max mx-auto"
+          className="font-mono font-light italic text-slate-800 text-[min(2.4vw,22px)] leading-[1.1] text-left select-none min-w-max mx-auto -skew-x-12"
         >
           {displayText}
         </pre>
