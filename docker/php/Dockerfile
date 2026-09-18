@@ -10,6 +10,8 @@ RUN apt-get update && apt-get install -y \
     libzip-dev \
     zip \
     unzip \
+    python3 \
+    python3-venv \
     && apt-get clean \
     && rm -rf /var/lib/apt/lists/*
 
@@ -26,6 +28,11 @@ RUN docker-php-ext-install \
 
 # Install Composer
 COPY --from=composer:latest /usr/bin/composer /usr/bin/composer
+
+# Install Python rembg in a virtual environment
+RUN python3 -m venv /opt/venv \
+    && /opt/venv/bin/pip install --upgrade pip \
+    && /opt/venv/bin/pip install rembg onnxruntime
 
 # Set working directory
 WORKDIR /var/www/html
