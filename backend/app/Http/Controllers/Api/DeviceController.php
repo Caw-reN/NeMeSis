@@ -272,7 +272,8 @@ class DeviceController extends Controller
         $tempOutput = tempnam(sys_get_temp_dir(), 'icon_bg_') . '.png';
         
         $scriptPath = base_path('scripts/remove_bg.py');
-        $cmd = "python " . escapeshellarg($scriptPath) . " " . escapeshellarg($tempInput) . " " . escapeshellarg($tempOutput) . " 2>&1";
+        $pythonBin = file_exists('/opt/venv/bin/python') ? '/opt/venv/bin/python' : 'python';
+        $cmd = escapeshellcmd($pythonBin) . " " . escapeshellarg($scriptPath) . " " . escapeshellarg($tempInput) . " " . escapeshellarg($tempOutput) . " 2>&1";
         
         $output = shell_exec($cmd);
         \Illuminate\Support\Facades\Log::info("rembg output: " . $output);
