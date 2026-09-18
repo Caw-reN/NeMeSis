@@ -264,30 +264,38 @@ class DeviceController extends Controller
      */
     protected function processIconUpload($file): string
     {
-        if ($file->getClientOriginalExtension() === 'svg') {
+        $extension = strtolower($file->getClientOriginalExtension());
+        if ($extension === 'svg') {
             return file_get_contents($file->getRealPath());
         }
 
         $tempInput = $file->getRealPath();
-        $tempOutput = tempnam(sys_get_temp_dir(), 'icon_bg_') . '.png';
         
-        $scriptPath = base_path('scripts/remove_bg.py');
-        $pythonBin = file_exists('/opt/venv/bin/python') ? '/opt/venv/bin/python' : 'python';
-        $cmd = "ORT_DISABLE_THREAD_AFFINITY=1 " . escapeshellcmd($pythonBin) . " " . escapeshellarg($scriptPath) . " " . escapeshellarg($tempInput) . " " . escapeshellarg($tempOutput) . " 2>&1";
-        
-        $output = shell_exec($cmd);
-        \Illuminate\Support\Facades\Log::info("rembg output: " . $output);
-
-        if (file_exists($tempOutput) && filesize($tempOutput) > 0) {
-            $base64 = base64_encode(file_get_contents($tempOutput));
-            $mime = 'image/png';
-            $dimensions = getimagesize($tempOutput);
-            @unlink($tempOutput);
-        } else {
-            // Fallback to original if processing fails
+        if ($extension === 'png') {
             $base64 = base64_encode(file_get_contents($tempInput));
             $mime = $file->getClientMimeType();
             $dimensions = getimagesize($tempInput);
+        } else {
+            $tempOutput = tempnam(sys_get_temp_dir(), 'icon_bg_') . '.png';
+            
+            $scriptPath = base_path('scripts/remove_bg.py');
+            $pythonBin = file_exists('/opt/venv/bin/python') ? '/opt/venv/bin/python' : 'python';
+            $cmd = "ORT_DISABLE_THREAD_AFFINITY=1 " . escapeshellcmd($pythonBin) . " " . escapeshellarg($scriptPath) . " " . escapeshellarg($tempInput) . " " . escapeshellarg($tempOutput) . " 2>&1";
+            
+            $output = shell_exec($cmd);
+            \Illuminate\Support\Facades\Log::info("rembg output: " . $output);
+
+            if (file_exists($tempOutput) && filesize($tempOutput) > 0) {
+                $base64 = base64_encode(file_get_contents($tempOutput));
+                $mime = 'image/png';
+                $dimensions = getimagesize($tempOutput);
+                @unlink($tempOutput);
+            } else {
+                // Fallback to original if processing fails
+                $base64 = base64_encode(file_get_contents($tempInput));
+                $mime = $file->getClientMimeType();
+                $dimensions = getimagesize($tempInput);
+            }
         }
 
         $imgWidth = 24;
