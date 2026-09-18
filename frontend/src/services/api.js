@@ -4,7 +4,7 @@ import { toast } from '../utils/toast'
 const api = axios.create({
   baseURL: import.meta.env.VITE_API_URL ?? 'http://localhost:8000',
   headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
-  timeout: 15000,
+  timeout: 60000, // Increased to 60s to allow slow VPS to process AI background removal
 })
 
 // ── Request interceptor: attach Bearer token ──────────────────────────────────
