@@ -80,7 +80,7 @@ export default function DashboardPage() {
       </section>
 
       {/* Bottom row */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* Recent Alerts */}
         <motion.section
           initial={{ opacity: 0, y: 12 }}
@@ -123,11 +123,52 @@ export default function DashboardPage() {
           )}
         </motion.section>
 
-        {/* System Info */}
+        {/* Devices by Type */}
         <motion.section
           initial={{ opacity: 0, y: 12 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.25, delay: 0.2 }}
+          className="bg-white rounded-2xl border border-slate-200 shadow-sm p-5"
+        >
+          <div className="flex items-center gap-2 mb-4">
+            <Server size={18} className="text-blue-500" />
+            <h2 className="font-display font-bold text-slate-900 text-base">Devices by Type</h2>
+          </div>
+
+          {loading ? (
+            <div className="space-y-3">
+              {[1,2,3].map(i => (
+                <div key={i} className="h-8 bg-slate-100 rounded-xl animate-pulse" />
+              ))}
+            </div>
+          ) : (
+            <div className="space-y-3">
+              {data?.devices_by_type?.map((item) => (
+                <div key={item.type} className="flex items-center justify-between py-2 border-b border-slate-50 last:border-0">
+                  <div className="flex items-center gap-3">
+                    <div className="w-8 h-8 bg-slate-50 rounded-lg flex items-center justify-center border border-slate-100">
+                      {item.icon_svg ? (
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-slate-600">
+                          <g dangerouslySetInnerHTML={{ __html: item.icon_svg }} />
+                        </svg>
+                      ) : (
+                        <Server size={14} className="text-slate-400" />
+                      )}
+                    </div>
+                    <span className="text-sm font-medium text-slate-700">{item.label}</span>
+                  </div>
+                  <span className="text-sm font-bold text-slate-900 bg-slate-100 px-2 py-0.5 rounded-md">{item.count}</span>
+                </div>
+              ))}
+            </div>
+          )}
+        </motion.section>
+
+        {/* System Info */}
+        <motion.section
+          initial={{ opacity: 0, y: 12 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.25, delay: 0.25 }}
           className="bg-white rounded-2xl border border-slate-200 shadow-sm p-5"
         >
           <div className="flex items-center gap-2 mb-4">

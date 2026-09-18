@@ -44,6 +44,19 @@ class DashboardController extends Controller
                 'time'        => $log->created_at->diffForHumans(),
             ]);
 
+        $devicesByType = Device::with('deviceType')
+            ->selectRaw('type, count(*) as count')
+            ->groupBy('type')
+            ->get()
+            ->map(function ($item) {
+                return [
+                    'type'  => $item->type,
+                    'label' => $item->deviceType?->label ?? ucfirst($item->type ?: 'unknown'),
+                    'count' => $item->count,
+                    'icon_svg' => $item->deviceType?->icon_svg,
+                ];
+            });
+
         return response()->json([
             'summary' => [
                 'total_devices'   => $totalDevices,
@@ -57,6 +70,7 @@ class DashboardController extends Controller
                 'last_scan_at'    => $lastScanAt,
             ],
             'recent_alerts' => $recentAlerts,
+            'devices_by_type' => $devicesByType,
         ]);
     }
 }
