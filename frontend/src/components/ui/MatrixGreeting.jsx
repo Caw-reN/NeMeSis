@@ -5,7 +5,14 @@ export default function MatrixGreeting() {
   const canvasRef = useRef(null)
   
   // Scramble text state
-  const targetText = "HALLO ADMIN NMS"
+  const targetAscii = `
+H   H   A   L     L      OOO      A   DDDD  M   M  III  N   N   N   N M   M  SSS 
+H   H  A A  L     L     O   O    A A  D   D MM MM   I   NN  N   NN  N MM MM S    
+HHHHH AAAAA L     L     O   O   AAAAA D   D M M M   I   N N N   N N N M M M  SSS 
+H   H A   A L     L     O   O   A   A D   D M   M   I   N  NN   N  NN M   M     S
+H   H A   A LLLLL LLLLL  OOO    A   A DDDD  M   M  III  N   N   N   N M   M  SSS 
+`.substring(1) // remove leading newline
+
   const [displayText, setDisplayText] = useState("")
 
   // Scramble effect
@@ -15,26 +22,27 @@ export default function MatrixGreeting() {
     
     const interval = setInterval(() => {
       setDisplayText(
-        targetText
+        targetAscii
           .split("")
           .map((letter, index) => {
-            if (index < iteration) {
-              return targetText[index]
+            // Keep shapes perfectly intact
+            if (letter === " " || letter === "\n") {
+              return letter
             }
-            if (letter === " " && Math.random() > 0.5) {
-              return " "
+            if (index < iteration) {
+              return targetAscii[index]
             }
             return chars[Math.floor(Math.random() * chars.length)]
           })
           .join("")
       )
 
-      if (iteration >= targetText.length) {
+      if (iteration >= targetAscii.length) {
         clearInterval(interval)
       }
 
-      iteration += 1 / 4 // 4 frames per letter
-    }, 40) // speed
+      iteration += 5 // Reveal 5 characters per frame so it takes a couple of seconds
+    }, 25) // speed
 
     return () => clearInterval(interval)
   }, [])
@@ -115,13 +123,13 @@ export default function MatrixGreeting() {
       <div className="absolute inset-0 bg-gradient-to-t from-white/90 via-white/30 to-white/60" />
 
       {/* Main Text */}
-      <div className="relative z-10 text-center px-4">
-        <h1 
-          className="font-display font-black text-4xl md:text-6xl lg:text-7xl tracking-tight text-transparent bg-clip-text bg-gradient-to-br from-emerald-400 to-emerald-700 drop-shadow-[0_4px_10px_rgba(16,185,129,0.2)]"
+      <div className="relative z-10 text-center px-4 w-full flex flex-col items-center justify-center overflow-hidden">
+        <pre 
+          className="font-mono font-black text-[min(1.4vw,14px)] leading-[1.1] text-left text-transparent bg-clip-text bg-gradient-to-br from-emerald-500 to-emerald-700 drop-shadow-sm select-none"
         >
           {displayText}
-        </h1>
-        <p className="mt-3 text-emerald-600/90 font-mono text-xs md:text-sm tracking-widest uppercase font-semibold">
+        </pre>
+        <p className="mt-4 text-emerald-600/90 font-mono text-xs md:text-sm tracking-widest uppercase font-semibold">
           SYSTEM_READY_ // AWAITING_COMMAND
         </p>
       </div>
