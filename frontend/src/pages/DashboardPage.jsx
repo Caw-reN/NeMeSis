@@ -138,42 +138,48 @@ export default function DashboardPage() {
           {loading ? (
             <div className="grid grid-cols-2 gap-4">
               {[1,2,3,4].map(i => (
-                <div key={i} className="h-24 bg-slate-100 rounded-xl animate-pulse" />
+                <div key={i} className="h-28 bg-slate-100 rounded-2xl animate-pulse" />
               ))}
             </div>
           ) : (
             <div className="grid grid-cols-2 gap-3 max-h-[350px] overflow-y-auto pr-1">
               {data?.devices_by_type?.map((item, idx) => {
                 const colors = [
-                  { bg: 'bg-blue-50', text: 'text-blue-500' },
-                  { bg: 'bg-emerald-50', text: 'text-emerald-500' },
-                  { bg: 'bg-purple-50', text: 'text-purple-500' },
-                  { bg: 'bg-amber-50', text: 'text-amber-500' },
-                  { bg: 'bg-rose-50', text: 'text-rose-500' },
-                  { bg: 'bg-cyan-50', text: 'text-cyan-500' },
+                  { bg: 'bg-blue-100', text: 'text-blue-600', blob: 'bg-blue-400' },
+                  { bg: 'bg-emerald-100', text: 'text-emerald-600', blob: 'bg-emerald-400' },
+                  { bg: 'bg-purple-100', text: 'text-purple-600', blob: 'bg-purple-400' },
+                  { bg: 'bg-amber-100', text: 'text-amber-600', blob: 'bg-amber-400' },
+                  { bg: 'bg-rose-100', text: 'text-rose-600', blob: 'bg-rose-400' },
+                  { bg: 'bg-cyan-100', text: 'text-cyan-600', blob: 'bg-cyan-400' },
                 ];
                 const color = colors[idx % colors.length];
 
                 return (
                   <motion.div
                     key={item.type}
-                    whileHover={{ scale: 1.02, y: -2 }}
-                    className="group flex flex-col items-start gap-2 p-3.5 rounded-xl border border-slate-200 bg-white hover:border-slate-300 shadow-sm hover:shadow-md transition-all cursor-default"
+                    whileHover={{ scale: 1.03, y: -2 }}
+                    className="relative group overflow-hidden flex flex-col p-4 rounded-2xl border border-slate-200/60 bg-gradient-to-br from-white to-slate-50 hover:border-slate-300 shadow-[0_2px_10px_-4px_rgba(0,0,0,0.05)] hover:shadow-lg transition-all duration-300 cursor-default"
                   >
-                    <div className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-lg ${color.bg}`}>
-                      {item.icon_svg ? (
-                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={color.text}>
-                          <g dangerouslySetInnerHTML={{ __html: item.icon_svg }} />
-                        </svg>
-                      ) : (
-                        <Server size={18} className={color.text} />
-                      )}
-                    </div>
-                    <div className="mt-1">
-                      <p className="text-xs font-medium text-slate-500 line-clamp-1" title={item.label}>{item.label}</p>
-                      <p className="font-display text-2xl font-extrabold text-slate-900 leading-tight mt-0.5">
+                    {/* Glowing Blob Background */}
+                    <div className={`absolute -right-6 -top-6 w-24 h-24 rounded-full opacity-10 blur-2xl group-hover:opacity-20 transition-opacity duration-300 ${color.blob}`}></div>
+
+                    <div className="flex items-start justify-between w-full relative z-10">
+                      <div className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-xl shadow-sm border border-white ${color.bg}`}>
+                        {item.icon_svg ? (
+                          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={color.text}>
+                            <g dangerouslySetInnerHTML={{ __html: item.icon_svg }} />
+                          </svg>
+                        ) : (
+                          <Server size={20} className={color.text} />
+                        )}
+                      </div>
+                      <span className="font-display text-2xl font-black text-slate-800 drop-shadow-sm">
                         {item.count}
-                      </p>
+                      </span>
+                    </div>
+
+                    <div className="mt-3 relative z-10">
+                      <p className="text-sm font-bold text-slate-700 line-clamp-2 leading-tight group-hover:text-indigo-600 transition-colors" title={item.label}>{item.label}</p>
                     </div>
                   </motion.div>
                 );
