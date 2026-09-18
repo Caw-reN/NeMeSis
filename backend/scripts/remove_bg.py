@@ -1,7 +1,7 @@
 import sys
 import io
 import traceback
-from rembg import remove
+from rembg import remove, new_session
 from PIL import Image
 
 def main():
@@ -16,8 +16,9 @@ def main():
         with open(input_path, 'rb') as i:
             input_data = i.read()
             
-        # Call rembg to remove background
-        output_data = remove(input_data)
+        # Call rembg with a lightweight model (u2netp) to prevent OOM on VPS
+        session = new_session("u2netp")
+        output_data = remove(input_data, session=session)
         
         # Save output data to the specified output path
         img = Image.open(io.BytesIO(output_data))
