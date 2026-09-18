@@ -16,9 +16,13 @@ class DashboardController extends Controller
     public function summary(): JsonResponse
     {
         $totalDevices    = Device::count();
+        $scannableDevices = Device::whereNotNull('ip_address')->where('ip_address', '!=', '')->count();
         $upDevices       = Device::up()->count();
         $downDevices     = Device::down()->count();
-        $unknownDevices  = Device::where('status', 'unknown')->count();
+        $unknownDevices  = Device::where('status', 'unknown')
+                                 ->whereNotNull('ip_address')
+                                 ->where('ip_address', '!=', '')
+                                 ->count();
         $snmpDevices     = Device::snmpEnabled()->count();
 
         // Last scan time = most recent last_seen_at across all devices
@@ -47,8 +51,8 @@ class DashboardController extends Controller
                 'down_devices'    => $downDevices,
                 'unknown_devices' => $unknownDevices,
                 'snmp_devices'    => $snmpDevices,
-                'uptime_percent'  => $totalDevices > 0
-                    ? round(($upDevices / $totalDevices) * 100, 1)
+                'uptime_percent'  => $scannableDevices > 0
+                    ? round(($upDevices / $scannableDevices) * 100, 1)
                     : 0,
                 'last_scan_at'    => $lastScanAt,
             ],
