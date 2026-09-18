@@ -60,7 +60,7 @@ HHH   HHH  AAA AAA   LLLLLLLL  LLLLLLLL   OOOOOO     AAA AAA   DDDDD     MMM   M
         >
           {displayText}
         </pre>
-        <p className="mt-4 text-slate-500 font-mono text-xs md:text-sm tracking-widest uppercase font-light italic text-center w-full">
+        <p className="mt-4 text-slate-500 font-mono text-xs md:text-sm tracking-widest uppercase font-light text-center w-full">
           SYSTEM_READY_ // AWAITING_COMMAND
         </p>
       </div>
