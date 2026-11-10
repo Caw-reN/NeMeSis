@@ -7,11 +7,34 @@ import (
 	"net/http"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/Caw-reN/NeMeSis/worker/internal/database"
 	"github.com/Caw-reN/NeMeSis/worker/pkg/logger"
+	"github.com/Caw-reN/NeMeSis/worker/pkg/pinger"
 )
+
+var (
+	userStateMu sync.Mutex
+	userStates  = make(map[int64]string) // chatID -> state (e.g. "awaiting_ping_ip")
+)
+
+func setUserState(chatID int64, state string) {
+	userStateMu.Lock()
+	defer userStateMu.Unlock()
+	if state == "" {
+		delete(userStates, chatID)
+	} else {
+		userStates[chatID] = state
+	}
+}
+
+func getUserState(chatID int64) string {
+	userStateMu.Lock()
+	defer userStateMu.Unlock()
+	return userStates[chatID]
+}
 
 type TelegramUpdate struct {
 	UpdateID int `json:"update_id"`
@@ -119,8 +142,34 @@ func StartBotListener() {
 				continue
 			}
 
+			// Check if user is in an active conversational state (e.g. entering manual ping IP)
+			currentState := getUserState(chatID)
+			if currentState == "awaiting_ping_ip" {
+				if text == "/cancel" || text == "batal" || text == "Batal" {
+					setUserState(chatID, "")
+					SendMessage(token, fmt.Sprintf("%d", chatID), "❌ Ping dibatalkan.")
+					continue
+				}
+
+				// Reset state and run ping to the user-entered IP or hostname
+				setUserState(chatID, "")
+				target := strings.TrimSpace(text)
+				go executeAndSendPing(token, chatID, target, "")
+				continue
+			}
+
 			// Handle commands
-			if strings.HasPrefix(text, "/perangkat") {
+			if strings.HasPrefix(text, "/ping") {
+				parts := strings.Fields(text)
+				if len(parts) > 1 {
+					// Direct command format: /ping 8.8.8.8
+					target := strings.TrimSpace(parts[1])
+					go executeAndSendPing(token, chatID, target, "")
+				} else {
+					// Menu format: /ping
+					handlePingMenuCommand(token, chatID)
+				}
+			} else if strings.HasPrefix(text, "/perangkat") {
 				handlePerangkatCommand(token, chatID)
 			} else if strings.HasPrefix(text, "/status_server") {
 				handleStatusServerCommand(token, chatID)
@@ -248,6 +297,53 @@ func handleStatusServerCommand(token string, chatID int64) {
 }
 
 func handleCallbackQuery(token string, chatID int64, data string) {
+	if data == "ping_cancel" {
+		setUserState(chatID, "")
+		SendMessage(token, fmt.Sprintf("%d", chatID), "❌ Operasi ping dibatalkan.")
+		return
+	}
+
+	if data == "ping_custom" {
+		setUserState(chatID, "awaiting_ping_ip")
+		msg := "🌐 *Input IP / Hostname Manual*\n\n" +
+			"Silakan ketik alamat IP atau hostname yang ingin Anda uji ping.\n" +
+			"Contoh: `8.8.8.8` atau `192.168.1.1` atau `google.com`\n\n" +
+			"_Ketik /cancel untuk membatalkan._"
+		SendMessage(token, fmt.Sprintf("%d", chatID), msg)
+		return
+	}
+
+	if strings.HasPrefix(data, "ping_dev_") {
+		idStr := strings.TrimPrefix(data, "ping_dev_")
+		deviceID, err := strconv.ParseInt(idStr, 10, 64)
+		if err != nil {
+			SendMessage(token, fmt.Sprintf("%d", chatID), "❌ ID Perangkat tidak valid.")
+			return
+		}
+
+		devices, err := database.GetActiveDevices()
+		if err != nil {
+			SendMessage(token, fmt.Sprintf("%d", chatID), "❌ Gagal mengambil data perangkat dari database.")
+			return
+		}
+
+		var targetDevice *database.DeviceRecord
+		for _, d := range devices {
+			if d.ID == deviceID {
+				targetDevice = &d
+				break
+			}
+		}
+
+		if targetDevice == nil || targetDevice.IPAddress == "" {
+			SendMessage(token, fmt.Sprintf("%d", chatID), "❌ Perangkat tidak ditemukan atau belum memiliki alamat IP.")
+			return
+		}
+
+		go executeAndSendPing(token, chatID, targetDevice.IPAddress, targetDevice.Name)
+		return
+	}
+
 	if strings.HasPrefix(data, "server_stats_") {
 		idStr := strings.TrimPrefix(data, "server_stats_")
 		deviceID, err := strconv.ParseInt(idStr, 10, 64)
@@ -303,4 +399,106 @@ func handleCallbackQuery(token string, chatID int64, data string) {
 
 		SendMessage(token, fmt.Sprintf("%d", chatID), msg)
 	}
+}
+
+func handlePingMenuCommand(token string, chatID int64) {
+	devices, err := database.GetActiveDevices()
+	if err != nil {
+		SendMessage(token, fmt.Sprintf("%d", chatID), "❌ Gagal mengambil data perangkat dari database.")
+		return
+	}
+
+	msg := "📡 *NMS Ping Tool — Diagnostik Jaringan*\n\n" +
+		"Pilih salah satu perangkat terdaftar di bawah untuk melakukan ping langsung, atau klik *Input IP Lain* untuk memasukkan IP tujuan secara manual:"
+
+	var inlineKeyboard [][]map[string]string
+
+	// List active devices that have IP address
+	for _, d := range devices {
+		if d.IPAddress == "" {
+			continue
+		}
+		statusIcon := "🟢"
+		if d.CurrentStatus == "down" {
+			statusIcon = "🔴"
+		}
+		row := []map[string]string{
+			{
+				"text":          fmt.Sprintf("%s %s (%s)", statusIcon, d.Name, d.IPAddress),
+				"callback_data": fmt.Sprintf("ping_dev_%d", d.ID),
+			},
+		}
+		inlineKeyboard = append(inlineKeyboard, row)
+	}
+
+	// Button to input other IP
+	inlineKeyboard = append(inlineKeyboard, []map[string]string{
+		{
+			"text":          "🌐 ➕ Input IP Manual / Lain",
+			"callback_data": "ping_custom",
+		},
+	})
+
+	// Button to cancel
+	inlineKeyboard = append(inlineKeyboard, []map[string]string{
+		{
+			"text":          "❌ Batal",
+			"callback_data": "ping_cancel",
+		},
+	})
+
+	SendMessageWithInlineKeyboard(token, fmt.Sprintf("%d", chatID), msg, inlineKeyboard)
+}
+
+func executeAndSendPing(token string, chatID int64, target string, deviceName string) {
+	target = strings.TrimSpace(target)
+	if target == "" {
+		SendMessage(token, fmt.Sprintf("%d", chatID), "❌ Alamat IP atau hostname tidak boleh kosong.")
+		return
+	}
+
+	displayName := fmt.Sprintf("`%s`", target)
+	if deviceName != "" {
+		displayName = fmt.Sprintf("*%s* (`%s`)", deviceName, target)
+	}
+
+	// Send initial status notification
+	SendMessage(token, fmt.Sprintf("%d", chatID), fmt.Sprintf("⏳ _Sedang melakukan ICMP ping (4 paket) ke %s..._", displayName))
+
+	// Run ping: 4 packets, 4 seconds timeout
+	res := pinger.Ping(target, 4, 4*time.Second)
+
+	currentTime := time.Now().Format("2006-01-02 15:04:05")
+
+	if res.Error != nil {
+		msg := fmt.Sprintf(
+			"📡 *Hasil Diagnostik Ping*\n\n"+
+				"🌐 *Target:* %s\n"+
+				"❌ *Gagal:* `%v`\n\n"+
+				"⏰ _Waktu: %s_",
+			displayName, res.Error, currentTime,
+		)
+		SendMessage(token, fmt.Sprintf("%d", chatID), msg)
+		return
+	}
+
+	var sb strings.Builder
+	sb.WriteString("📡 *Hasil Diagnostik Ping*\n\n")
+	sb.WriteString(fmt.Sprintf("🌐 *Target:* %s\n", displayName))
+
+	if res.Alive {
+		sb.WriteString("📊 *Status:* ✅ *REACHABLE (ONLINE)*\n\n")
+		sb.WriteString(fmt.Sprintf("📦 *Statistik Paket:*\n• Terkirim: `%d` | Diterima: `%d`\n• Packet Loss: `%.0f%%`\n\n",
+			res.PacketsSent, res.PacketsRecv, res.PacketLoss))
+		sb.WriteString(fmt.Sprintf("⏱ *Latency Round-Trip (RTT):*\n• Min: `%.2f ms`\n• Avg: `%.2f ms`\n• Max: `%.2f ms`\n• Jitter: `±%.2f ms`\n\n",
+			res.MinRtt, res.AvgRtt, res.MaxRtt, res.StdDevRtt))
+	} else {
+		sb.WriteString("📊 *Status:* ❌ *UNREACHABLE (REQUEST TIMED OUT)*\n\n")
+		sb.WriteString(fmt.Sprintf("📦 *Statistik Paket:*\n• Terkirim: `%d` | Diterima: `%d`\n• Packet Loss: `%.0f%%`\n\n",
+			res.PacketsSent, res.PacketsRecv, res.PacketLoss))
+		sb.WriteString("⚠️ _Tidak ada balasan ICMP echo dari host target (100% loss)._\n\n")
+	}
+
+	sb.WriteString(fmt.Sprintf("⏰ _Diuji pada: %s_", currentTime))
+	SendMessage(token, fmt.Sprintf("%d", chatID), sb.String())
 }

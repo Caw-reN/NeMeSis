@@ -67,3 +67,4 @@ class CheckMikrotikQueuesCommand extends Command
         return self::SUCCESS;
     }
 }
+

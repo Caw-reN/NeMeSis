@@ -60,7 +60,10 @@ func SendTelegramAlert(device database.DeviceRecord, status string, latency floa
 				{
 					{"text": "/status"},
 					{"text": "/perangkat"},
+				},
+				{
 					{"text": "/status_server"},
+					{"text": "/ping"},
 				},
 			},
 			"resize_keyboard": true,
@@ -102,7 +105,10 @@ func SendMessage(token, chatID, text string) {
 				{
 					{"text": "/status"},
 					{"text": "/perangkat"},
+				},
+				{
 					{"text": "/status_server"},
+					{"text": "/ping"},
 				},
 			},
 			"resize_keyboard": true,

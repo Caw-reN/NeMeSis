@@ -370,3 +370,4 @@ export default function MikrotikQueuePanel({ queuesData, threshold = 90 }) {
     </div>
   )
 }
+
