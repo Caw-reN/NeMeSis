@@ -29,18 +29,23 @@ class DashboardController extends Controller
         $lastScanAt = Device::whereNotNull('last_seen_at')
             ->max('last_seen_at');
 
-        // Recent critical events (DOWN status changes in last 24h)
-        $recentAlerts = DeviceLog::where('event_type', 'status_change')
+        // Recent critical events (DOWN status changes and Queue overload alerts in last 24h)
+        $recentAlerts = DeviceLog::whereIn('event_type', ['status_change', 'error'])
             ->where('created_at', '>=', now()->subDay())
-            ->whereJsonContains('metadata->after', 'down')
+            ->where(function ($q) {
+                $q->whereJsonContains('metadata->after', 'down')
+                  ->orWhereJsonContains('metadata->type', 'simple_queue')
+                  ->orWhereJsonContains('metadata->type', 'queue_tree');
+            })
             ->with('device:id,name,ip_address')
             ->latest()
-            ->take(5)
+            ->take(6)
             ->get()
             ->map(fn ($log) => [
                 'device_name' => $log->device?->name,
                 'ip_address'  => $log->device?->ip_address,
                 'message'     => $log->message,
+                'is_queue'    => in_array($log->metadata['type'] ?? '', ['simple_queue', 'queue_tree']),
                 'time'        => $log->created_at->diffForHumans(),
             ]);
 

@@ -108,13 +108,23 @@ export default function DashboardPage() {
           ) : (
             <ul className="space-y-2">
               {data.recent_alerts.map((alert, i) => (
-                <li key={i} className="flex items-start gap-3 p-3 rounded-xl bg-rose-50 border border-rose-100">
-                  <XCircle size={15} className="text-rose-500 shrink-0 mt-0.5" />
+                <li key={i} className={`flex items-start gap-3 p-3 rounded-xl border ${alert.is_queue ? 'bg-amber-50/70 border-amber-200' : 'bg-rose-50 border-rose-100'}`}>
+                  {alert.is_queue ? (
+                    <AlertTriangle size={15} className="text-amber-600 shrink-0 mt-0.5" />
+                  ) : (
+                    <XCircle size={15} className="text-rose-500 shrink-0 mt-0.5" />
+                  )}
                   <div className="min-w-0">
-                    <p className="text-sm font-semibold text-slate-900 truncate">
-                      {alert.device_name} <span className="font-normal text-slate-500">({alert.ip_address})</span>
+                    <p className="text-sm font-semibold text-slate-900 truncate flex items-center gap-2">
+                      <span>{alert.device_name}</span>
+                      <span className="font-normal text-slate-500 text-xs">({alert.ip_address})</span>
+                      {alert.is_queue && (
+                        <span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-amber-200 text-amber-800">
+                          QUEUE
+                        </span>
+                      )}
                     </p>
-                    <p className="text-xs text-slate-500">{alert.message}</p>
+                    <p className="text-xs text-slate-600 mt-0.5">{alert.message}</p>
                   </div>
                   <span className="text-xs text-slate-400 shrink-0 ml-auto">{alert.time}</span>
                 </li>

@@ -1,7 +1,8 @@
 import { useState, useEffect, useCallback } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
-import { RefreshCw, Cpu, MemoryStick, Wifi, Network, Users, Clock } from 'lucide-react'
+import { RefreshCw, Cpu, MemoryStick, Wifi, Network, Users, Clock, AlertTriangle } from 'lucide-react'
 import InterfaceTable from './InterfaceTable'
+import MikrotikQueuePanel from './MikrotikQueuePanel'
 import { metricsService } from '../../services/metrics.service'
 import { toast } from '../../utils/toast'
 import ConfigConfirmationModal from '../ui/ConfigConfirmationModal'
@@ -15,9 +16,10 @@ const REFRESH_INTERVAL_MS = 30_000
  *
  * Displays:
  * - System resources: CPU load, memory, uptime, version
- * - IP Addresses assigned to interfaces
  * - Interfaces with Rx/Tx counters
+ * - Queues (Simple Queues & Queue Trees) with overload indicators
  * - DHCP leases table
+ * - Routing table
  *
  * Props:
  *   deviceId   - device DB id
@@ -28,7 +30,7 @@ export default function MikrotikMetricsPanel({ deviceId, deviceName }) {
   const [loading, setLoading]   = useState(true)
   const [error,   setError]     = useState(null)
   const [lastAt,  setLastAt]    = useState(null)
-  const [tab,     setTab]       = useState('interfaces') // interfaces | dhcp | routing
+  const [tab,     setTab]       = useState('interfaces') // interfaces | queues | dhcp | routing
 
   const [portModal, setPortModal] = useState({ open: false, port: null, enable: false })
   const [portLoading, setPortLoading] = useState(false)
@@ -82,6 +84,8 @@ export default function MikrotikMetricsPanel({ deviceId, deviceName }) {
   }
 
   const res = metrics?.system_resources
+  const totalQueues = (metrics?.queues?.simple_queues?.length ?? 0) + (metrics?.queues?.queue_trees?.length ?? 0)
+  const hasOverloadedQueue = metrics?.queues?.has_overloaded
 
   return (
     <div className="space-y-5">
@@ -89,8 +93,8 @@ export default function MikrotikMetricsPanel({ deviceId, deviceName }) {
       <div className="flex items-center gap-3">
         <div>
           <p className="text-xs text-slate-400">
-            Mikrotik RouterOS API - Live metrics
-            {lastAt && ` � last polled ${lastAt.toLocaleTimeString()}`}
+            Mikrotik RouterOS API - Live metrics & Queue Engine
+            {lastAt && ` · last polled ${lastAt.toLocaleTimeString()}`}
           </p>
         </div>
         <button
@@ -159,22 +163,33 @@ export default function MikrotikMetricsPanel({ deviceId, deviceName }) {
       {/* Tab navigation */}
       {metrics && !loading && (
         <>
-          <div className="flex gap-1 bg-slate-100 rounded-xl p-1 w-fit">
+          <div className="flex gap-1 bg-slate-100 rounded-xl p-1 w-fit overflow-x-auto max-w-full">
             {[
               { id: 'interfaces', label: `Interfaces (${metrics.interfaces?.length ?? 0})` },
+              { 
+                id: 'queues',     
+                label: `Queues (${totalQueues})`,
+                badge: hasOverloadedQueue ? 'OVERLOAD' : null,
+                badgeColor: 'bg-rose-500 text-white animate-pulse'
+              },
               { id: 'dhcp',       label: `DHCP Leases (${metrics.dhcp_leases?.length ?? 0})` },
               { id: 'routing',    label: `Routes (${metrics.routing_table?.length ?? 0})` },
             ].map(t => (
               <button
                 key={t.id}
                 onClick={() => setTab(t.id)}
-                className={`px-3 py-1.5 text-xs font-semibold rounded-lg transition ${
+                className={`flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-lg transition whitespace-nowrap ${
                   tab === t.id
                     ? 'bg-white text-slate-900 shadow-sm'
                     : 'text-slate-500 hover:text-slate-700'
                 }`}
               >
-                {t.label}
+                <span>{t.label}</span>
+                {t.badge && (
+                  <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded-full leading-none ${t.badgeColor}`}>
+                    {t.badge}
+                  </span>
+                )}
               </button>
             ))}
           </div>
@@ -189,6 +204,12 @@ export default function MikrotikMetricsPanel({ deviceId, deviceName }) {
             >
               {tab === 'interfaces' && (
                 <InterfaceTable interfaces={metrics.interfaces ?? []} vendor="mikrotik" onTogglePort={handleTogglePort} />
+              )}
+              {tab === 'queues' && (
+                <MikrotikQueuePanel
+                  queuesData={metrics.queues}
+                  threshold={metrics.queues?.threshold_percent ?? 90}
+                />
               )}
               {tab === 'dhcp' && (
                 <DhcpLeasesTable leases={metrics.dhcp_leases ?? []} />
@@ -272,7 +293,7 @@ function RoutingTable({ routes }) {
   )
 }
 
-// ── Formatters ───────────────────────────────────────────────────────────────
+// ── Formatters ──────────────────────────────────────────────────────────────
 function fmtBytes(val) {
   if (!val) return '?'
   const n = typeof val === 'string' ? parseInt(val, 10) : val

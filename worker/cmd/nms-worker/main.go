@@ -1,6 +1,7 @@
 package main
 
 import (
+	"net/http"
 	"os"
 	"os/signal"
 	"syscall"
@@ -51,11 +52,19 @@ func main() {
 	go notifier.StartBotListener()
 
 	// -------------------------------------------------------------------------
-	// 5. Start Polling Loop
+	// 5. Start Polling Loop & DB Log Pruning (runs every 1 hour)
 	// -------------------------------------------------------------------------
 	logger.Info("Starting polling loop...")
 	ticker := time.NewTicker(time.Duration(cfg.PollIntervalSeconds) * time.Second)
 	defer ticker.Stop()
+
+	pruneTicker := time.NewTicker(1 * time.Hour)
+	defer pruneTicker.Stop()
+
+	// Initial cleanup on worker startup (keep last 7 days of device logs)
+	if deleted, err := database.PruneOldLogs(7); err == nil && deleted > 0 {
+		logger.Infof("Initial DB cleanup: pruned %d old device log(s).", deleted)
+	}
 
 	// Run immediately on startup before first tick
 	runScanCycle(cfg)
@@ -64,6 +73,13 @@ func main() {
 		select {
 		case <-ticker.C:
 			runScanCycle(cfg)
+
+		case <-pruneTicker.C:
+			if deleted, err := database.PruneOldLogs(7); err != nil {
+				logger.Errorf("Failed to prune old device logs: %v", err)
+			} else if deleted > 0 {
+				logger.Infof("Periodic DB cleanup: pruned %d old device log(s) older than 7 days.", deleted)
+			}
 
 		case sig := <-quit:
 			logger.Infof("Received signal %s. Shutting down gracefully...", sig)
@@ -101,18 +117,47 @@ func runScanCycle(cfg *config.Config) {
 	scanner.ProcessResults(results)
 
 	// Step 4: SNMP polling for devices that are UP and have SNMP enabled
+	hasMikrotik := false
 	for _, result := range results {
-		if result.PingOK && result.Device.SNMPEnabled {
-			if result.Device.Vendor == "server" {
-				// VPS/Linux server — poll detailed metrics (CPU, RAM, disk, net)
-				go snmp.PollVpsMetrics(result.Device)
-			} else {
-				// Network device — poll basic sysDescr/sysName/uptime
-				go snmp.PollDevice(result.Device)
+		if result.PingOK {
+			if result.Device.Vendor == "mikrotik" {
+				hasMikrotik = true
+			}
+			if result.Device.SNMPEnabled {
+				if result.Device.Vendor == "server" {
+					// VPS/Linux server — poll detailed metrics (CPU, RAM, disk, net)
+					go snmp.PollVpsMetrics(result.Device)
+				} else {
+					// Network device — poll basic sysDescr/sysName/uptime
+					go snmp.PollDevice(result.Device)
+				}
 			}
 		}
 	}
 
+	// Step 5: Check MikroTik queues in background if any MikroTik device is UP
+	if hasMikrotik {
+		go triggerMikrotikQueueCheck()
+	}
+
 	elapsed := time.Since(cycleStart)
 	logger.Infof("--- Scan cycle complete in %.2fs ---", elapsed.Seconds())
+}
+
+// triggerMikrotikQueueCheck calls the backend internal API to evaluate queue saturation and send alerts.
+func triggerMikrotikQueueCheck() {
+	client := &http.Client{Timeout: 10 * time.Second}
+	endpoints := []string{
+		"http://nginx:80/api/internal/check-queues",
+		"http://127.0.0.1:8000/api/internal/check-queues",
+		"http://localhost:8000/api/internal/check-queues",
+	}
+
+	for _, ep := range endpoints {
+		resp, err := client.Post(ep, "application/json", nil)
+		if err == nil {
+			resp.Body.Close()
+			return
+		}
+	}
 }

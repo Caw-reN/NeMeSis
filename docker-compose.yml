@@ -18,6 +18,11 @@ services:
       - nginx
     networks:
       - nms_network
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
 
   # ============================================================
   # SERVICE: NGINX (Web Server / Reverse Proxy for Backend)
@@ -35,6 +40,11 @@ services:
       - backend
     networks:
       - nms_network
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
 
   # ============================================================
   # SERVICE: BACKEND (PHP-FPM / Laravel 11)
@@ -53,6 +63,8 @@ services:
       - APP_ENV=${APP_ENV:-production}
       - APP_DEBUG=${APP_DEBUG:-false}
       - APP_URL=${APP_URL:-http://localhost:8000}
+      - LOG_CHANNEL=daily
+      - LOG_DAILY_DAYS=7
       - DB_CONNECTION=mysql
       - DB_HOST=database
       - DB_PORT=3306
@@ -64,6 +76,11 @@ services:
         condition: service_healthy
     networks:
       - nms_network
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
 
   # ============================================================
   # SERVICE: WORKER (Go — Network Scanning Engine)
@@ -91,6 +108,11 @@ services:
         condition: service_healthy
     networks:
       - nms_network
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
 
   # ============================================================
   # SERVICE: DATABASE (MySQL 8.0)
@@ -117,6 +139,11 @@ services:
       start_period: 30s
     networks:
       - nms_network
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
 
 # ============================================================
 # NETWORKS

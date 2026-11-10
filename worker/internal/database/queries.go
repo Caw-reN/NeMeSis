@@ -105,3 +105,18 @@ func UpsertScanResult(r ScanResultRecord) error {
 	}
 	return nil
 }
+
+// PruneOldLogs deletes device_logs older than retentionDays (e.g., 7 days)
+// to prevent disk space from filling up with historical event records.
+func PruneOldLogs(retentionDays int) (int64, error) {
+	query := `DELETE FROM device_logs WHERE created_at < DATE_SUB(NOW(), INTERVAL ? DAY)`
+	res, err := DB.Exec(query, retentionDays)
+	if err != nil {
+		return 0, fmt.Errorf("PruneOldLogs error: %w", err)
+	}
+	rows, err := res.RowsAffected()
+	if err != nil {
+		return 0, nil
+	}
+	return rows, nil
+}

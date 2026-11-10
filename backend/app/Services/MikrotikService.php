@@ -204,6 +204,42 @@ class MikrotikService
         return $rows[0]['name'] ?? '';
     }
 
+    /**
+     * Get simple queues (/queue/simple/print).
+     *
+     * Returns: list of simple queues with rate, max-limit, drops, bytes, etc.
+     */
+    public function getSimpleQueues(): array
+    {
+        try {
+            return $this->query(['/queue/simple/print', '=stats=']);
+        } catch (\RuntimeException) {
+            try {
+                return $this->query(['/queue/simple/print']);
+            } catch (\RuntimeException) {
+                return [];
+            }
+        }
+    }
+
+    /**
+     * Get queue trees (/queue/tree/print).
+     *
+     * Returns: list of queue trees with rate, max-limit, drops, bytes, etc.
+     */
+    public function getQueueTrees(): array
+    {
+        try {
+            return $this->query(['/queue/tree/print', '=stats=']);
+        } catch (\RuntimeException) {
+            try {
+                return $this->query(['/queue/tree/print']);
+            } catch (\RuntimeException) {
+                return [];
+            }
+        }
+    }
+
     // =========================================================================
     // Fase 4: Auto-Discovery — LLDP / Neighbor Protocol
     // =========================================================================

@@ -31,6 +31,9 @@ Route::prefix('auth')->group(function () {
     });
 });
 
+// Internal background trigger (called by Go worker on scan cycles)
+Route::match(['get', 'post'], 'internal/check-queues', [MetricsController::class, 'checkAllQueuesAlerts']);
+
 // =========================================================================
 // Protected Routes — require valid Sanctum token
 // =========================================================================
@@ -72,10 +75,12 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::delete('topology/shapes/{shape}',  [TopologyController::class, 'destroyShape']);
     Route::post('topology/positions',         [TopologyController::class, 'savePositions']);
 
-    // Metrics — Fase 3a (Read Mode)
-    Route::get('devices/{device}/metrics/mikrotik', [MetricsController::class, 'mikrotik']);
-    Route::get('devices/{device}/metrics/cisco',    [MetricsController::class, 'cisco']);
-    Route::get('devices/{device}/metrics/vps',      [VpsMetricsController::class, 'show']);
+    // Metrics — Fase 3a (Read Mode) & Queues
+    Route::get('devices/{device}/metrics/mikrotik',        [MetricsController::class, 'mikrotik']);
+    Route::get('devices/{device}/metrics/mikrotik/queues', [MetricsController::class, 'mikrotikQueues']);
+    Route::match(['get', 'post'], 'devices/queues/check-alerts', [MetricsController::class, 'checkAllQueuesAlerts']);
+    Route::get('devices/{device}/metrics/cisco',           [MetricsController::class, 'cisco']);
+    Route::get('devices/{device}/metrics/vps',             [VpsMetricsController::class, 'show']);
 
     // Area Maps
     Route::apiResource('areas', \App\Http\Controllers\Api\AreaController::class);

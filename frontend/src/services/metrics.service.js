@@ -13,10 +13,18 @@ import api from './api'
 export const metricsService = {
   /**
    * Fetch Mikrotik device metrics.
-   * Returns: system_resources, interfaces, ip_addresses, dhcp_leases, routing_table.
+   * Returns: system_resources, interfaces, ip_addresses, dhcp_leases, routing_table, queues.
    */
   getMikrotikMetrics: async (deviceId) => {
     const { data } = await api.get(`/api/devices/${deviceId}/metrics/mikrotik`)
+    return data
+  },
+
+  /**
+   * Fetch Mikrotik queues only (for fast targeted queue polling).
+   */
+  getMikrotikQueues: async (deviceId) => {
+    const { data } = await api.get(`/api/devices/${deviceId}/metrics/mikrotik/queues`)
     return data
   },
 

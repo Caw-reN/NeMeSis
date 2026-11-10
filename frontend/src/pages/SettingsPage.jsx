@@ -17,9 +17,10 @@ export default function SettingsPage() {
   const [label, setLabel] = useState('')
   const [file, setFile] = useState(null)
 
-  // Telegram Settings State
+  // Telegram & Alert Settings State
   const [telegramToken, setTelegramToken] = useState('')
   const [telegramChatId, setTelegramChatId] = useState('')
+  const [queueThreshold, setQueueThreshold] = useState('90')
   const [isSavingTelegram, setIsSavingTelegram] = useState(false)
 
   useEffect(() => {
@@ -32,6 +33,7 @@ export default function SettingsPage() {
       const res = await api.get('/api/settings')
       setTelegramToken(res.data.telegram_bot_token || '')
       setTelegramChatId(res.data.telegram_chat_id || '')
+      setQueueThreshold(res.data.mikrotik_queue_threshold_percent || '90')
     } catch (err) {
       toast.error('Gagal mengambil pengaturan.')
     }
@@ -43,9 +45,10 @@ export default function SettingsPage() {
     try {
       await api.post('/api/settings', {
         telegram_bot_token: telegramToken,
-        telegram_chat_id: telegramChatId
+        telegram_chat_id: telegramChatId,
+        mikrotik_queue_threshold_percent: queueThreshold
       })
-      toast.success('Pengaturan Telegram berhasil disimpan')
+      toast.success('Pengaturan berhasil disimpan')
     } catch (err) {
       toast.error('Gagal menyimpan pengaturan')
     } finally {
@@ -226,6 +229,25 @@ export default function SettingsPage() {
               onChange={e => setTelegramChatId(e.target.value)}
             />
             <p className="text-xs text-slate-500 mt-1">Chat ID grup atau akun Anda yang akan menerima notifikasi.</p>
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-slate-700 mb-1">Ambang Batas Overload Queue MikroTik (%)</label>
+            <div className="flex items-center gap-2">
+              <input
+                type="number"
+                min="50"
+                max="100"
+                step="1"
+                className="w-32 bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 text-sm outline-none focus:border-indigo-500 transition font-mono"
+                placeholder="90"
+                value={queueThreshold}
+                onChange={e => setQueueThreshold(e.target.value)}
+              />
+              <span className="text-sm text-slate-500 font-medium">%</span>
+            </div>
+            <p className="text-xs text-slate-500 mt-1">
+              Pemicu alert otomatis ke Telegram jika trafik antrean MikroTik $\ge$ persentase ini dari Max Limit (default: 90%).
+            </p>
           </div>
           <button
             type="submit"
