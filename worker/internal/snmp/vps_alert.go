@@ -61,7 +61,8 @@ func CheckVpsAlerts(device database.DeviceRecord, rec database.VpsMetricsRecord)
 		return
 	}
 
-	ts := time.Now().Format("2006-01-02 15:04:05")
+	wibLocation := time.FixedZone("WIB", 7*3600)
+	ts := time.Now().In(wibLocation).Format("2006-01-02 15:04:05") + " WIB"
 
 	// ── CPU ───────────────────────────────────────────────────────────────────
 	cpuUsed := 100.0 - rec.CpuIdle

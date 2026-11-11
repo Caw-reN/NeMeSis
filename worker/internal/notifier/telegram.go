@@ -5,11 +5,27 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"sync"
 	"time"
 
 	"github.com/Caw-reN/NeMeSis/worker/internal/database"
 	"github.com/Caw-reN/NeMeSis/worker/pkg/logger"
 )
+
+var (
+	wibLocation = time.FixedZone("WIB", 7*3600)
+
+	// Flapping & deduplication protection
+	deviceAlertMu  sync.Mutex
+	deviceAlertMap = make(map[int64]*deviceAlertState)
+)
+
+type deviceAlertState struct {
+	lastStatus    string
+	lastAlertTime time.Time
+	flapping      bool
+	flapCount     int
+}
 
 // SendTelegramAlert sends a message to Telegram about a device status change.
 func SendTelegramAlert(device database.DeviceRecord, status string, latency float64) {
@@ -24,6 +40,70 @@ func SendTelegramAlert(device database.DeviceRecord, status string, latency floa
 		return
 	}
 
+	// Anti-flapping and deduplication check
+	deviceAlertMu.Lock()
+	now := time.Now()
+	state, exists := deviceAlertMap[device.ID]
+
+	if !exists {
+		deviceAlertMap[device.ID] = &deviceAlertState{
+			lastStatus:    status,
+			lastAlertTime: now,
+		}
+		deviceAlertMu.Unlock()
+	} else {
+		// Suppress duplicate alert for identical status
+		if state.lastStatus == status {
+			deviceAlertMu.Unlock()
+			return
+		}
+
+		elapsed := now.Sub(state.lastAlertTime)
+
+		// Flapping detection: status changed in less than 90 seconds
+		if elapsed < 90*time.Second {
+			state.flapCount++
+			if state.flapCount >= 2 {
+				// Rapid toggling detected
+				if !state.flapping {
+					state.flapping = true
+					state.lastStatus = status
+					state.lastAlertTime = now
+					deviceAlertMu.Unlock()
+
+					// Send one single flapping warning notification
+					wibTime := now.In(wibLocation).Format("2006-01-02 15:04:05") + " WIB"
+					flapMsg := fmt.Sprintf(
+						"⚠️ *[FLAPPING WARNING] KONEKSI TIDAK STABIL* ⚠️\n\n"+
+							"🖥 *Device:* %s\n"+
+							"🌐 *IP:* `%s`\n"+
+							"⚡ *Kondisi:* Status perangkat berubah-ubah (UP/DOWN) secara cepat.\n"+
+							"🔇 *Tindakan:* Notifikasi Telegram untuk perangkat ini diredam sementara hingga koneksi stabil.\n\n"+
+							"⏰ *Waktu:* %s",
+						device.Name, device.IPAddress, wibTime,
+					)
+					SendMessage(token, chatID, flapMsg)
+					return
+				}
+
+				// Already in flapping mode: suppress notification
+				state.lastStatus = status
+				state.lastAlertTime = now
+				deviceAlertMu.Unlock()
+				logger.Warnf("Suppressed flapping Telegram alert for %s (%s)", device.Name, status)
+				return
+			}
+		} else {
+			// Stabilized after previous flapping or normal interval
+			state.flapCount = 0
+			state.flapping = false
+		}
+
+		state.lastStatus = status
+		state.lastAlertTime = now
+		deviceAlertMu.Unlock()
+	}
+
 	// Prepare message content
 	var icon string
 	var statusText string
@@ -36,7 +116,7 @@ func SendTelegramAlert(device database.DeviceRecord, status string, latency floa
 		statusText = "RECOVERED (UP)"
 	}
 
-	currentTime := time.Now().Format("2006-01-02 15:04:05")
+	currentTime := now.In(wibLocation).Format("2006-01-02 15:04:05") + " WIB"
 	latencyText := ""
 	if status == "up" {
 		latencyText = fmt.Sprintf("\n⏱ Latency: %.2f ms", latency)

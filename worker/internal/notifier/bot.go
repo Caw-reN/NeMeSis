@@ -394,7 +394,7 @@ func handleCallbackQuery(token string, chatID int64, data string) {
 			metrics.CpuUser+metrics.CpuSystem,
 			ramUsage, metrics.MemTotalKB/1024,
 			diskUsage, totalDisk/(1024*1024),
-			metrics.PolledAt.Format("2006-01-02 15:04:05"),
+			metrics.PolledAt.In(time.FixedZone("WIB", 7*3600)).Format("2006-01-02 15:04:05") + " WIB",
 		)
 
 		SendMessage(token, fmt.Sprintf("%d", chatID), msg)
@@ -468,7 +468,7 @@ func executeAndSendPing(token string, chatID int64, target string, deviceName st
 	// Run ping: 4 packets, 4 seconds timeout
 	res := pinger.Ping(target, 4, 4*time.Second)
 
-	currentTime := time.Now().Format("2006-01-02 15:04:05")
+	currentTime := time.Now().In(time.FixedZone("WIB", 7*3600)).Format("2006-01-02 15:04:05") + " WIB"
 
 	if res.Error != nil {
 		msg := fmt.Sprintf(

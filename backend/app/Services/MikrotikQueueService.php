@@ -19,12 +19,17 @@ class MikrotikQueueService
     /**
      * Recovery threshold percentage (below this, queue is considered recovered).
      */
-    public const RECOVERY_THRESHOLD = 80.0;
+    public const RECOVERY_THRESHOLD = 75.0;
 
     /**
      * Cooldown period in seconds before repeating an alert for the same queue.
      */
-    public const COOLDOWN_SECONDS = 600; // 10 minutes
+    public const COOLDOWN_SECONDS = 900; // 15 minutes
+
+    /**
+     * Damping period in seconds after recovery before a new alert can trigger.
+     */
+    public const RECOVERY_DAMPING_SECONDS = 300; // 5 minutes
 
     /**
      * Get configured threshold percentage from database or fallback to default.
@@ -66,6 +71,7 @@ class MikrotikQueueService
             $dropped   = explode('/', $q['dropped'] ?? '0/0');
             $upDrops   = isset($dropped[0]) ? (int)$dropped[0] : 0;
             $downDrops = isset($dropped[1]) ? (int)$dropped[1] : 0;
+            $currentTotalDrops = $upDrops + $downDrops;
 
             $bytes   = explode('/', $q['bytes'] ?? '0/0');
             $upBytes = isset($bytes[0]) ? (float)$bytes[0] : 0.0;
@@ -79,9 +85,17 @@ class MikrotikQueueService
             $upPercent = ($upMax > 0) ? round(($upRate / $upMax) * 100, 1) : 0.0;
             $downPercent = ($downMax > 0) ? round(($downRate / $downMax) * 100, 1) : 0.0;
 
-            // Overload detection (traffic >= threshold OR packet drops > 0)
-            $upOverloaded   = !$disabled && (($upMax > 0 && $upPercent >= $threshold) || $upDrops > 0);
-            $downOverloaded = !$disabled && (($downMax > 0 && $downPercent >= $threshold) || $downDrops > 0);
+            // Active drops detection (only consider drops that occurred recently, not historical drops from boot)
+            $prevDropsKey = "mk_q_prev_drops_simple_{$name}";
+            $prevTotalDrops = Cache::get($prevDropsKey);
+            Cache::put($prevDropsKey, $currentTotalDrops, now()->addHours(24));
+            $hasActiveDrops = ($prevTotalDrops !== null && $currentTotalDrops > $prevTotalDrops);
+
+            // Overload detection:
+            // 1. Traffic reaches threshold (e.g. >= 90%)
+            // 2. OR active drops happening while queue is near capacity (>= 75%)
+            $upOverloaded   = !$disabled && ($upMax > 0 && ($upPercent >= $threshold || ($hasActiveDrops && $upPercent >= 75)));
+            $downOverloaded = !$disabled && (($downMax > 0 && $downPercent >= $threshold) || ($hasActiveDrops && $downPercent >= 75));
             $isOverloaded   = $upOverloaded || $downOverloaded;
 
             $parsed[] = [
@@ -138,8 +152,14 @@ class MikrotikQueueService
             $bytes    = isset($t['bytes']) ? (float)$t['bytes'] : 0.0;
             $packets  = isset($t['packets']) ? (int)$t['packets'] : 0;
 
+            // Active drops detection
+            $prevDropsKey = "mk_q_prev_drops_tree_{$name}";
+            $prevDrops = Cache::get($prevDropsKey);
+            Cache::put($prevDropsKey, $drops, now()->addHours(24));
+            $hasActiveDrops = ($prevDrops !== null && $drops > $prevDrops);
+
             $percent = ($maxLimit > 0) ? round(($rate / $maxLimit) * 100, 1) : 0.0;
-            $isOverloaded = !$disabled && (($maxLimit > 0 && $percent >= $threshold) || $drops > 0);
+            $isOverloaded = !$disabled && ($maxLimit > 0 && ($percent >= $threshold || ($hasActiveDrops && $percent >= 75)));
 
             $parsed[] = [
                 'id'                 => $t['.id'] ?? '',
@@ -194,12 +214,13 @@ class MikrotikQueueService
                     $alertsTriggered++;
                 }
             } else {
-                // Check if queue has recovered (usage < RECOVERY_THRESHOLD and drops == 0)
+                // Check if queue has recovered (usage < RECOVERY_THRESHOLD)
                 $wasOverloaded = Cache::get($cacheKeyState);
                 if ($wasOverloaded && $q['download_usage_percent'] < self::RECOVERY_THRESHOLD && $q['upload_usage_percent'] < self::RECOVERY_THRESHOLD) {
                     $this->triggerSimpleQueueRecovery($device, $q);
                     Cache::forget($cacheKeyState);
-                    Cache::forget($cacheKeyCooldown);
+                    // Damping: Keep cooldown for 5 minutes after recovery to prevent immediate re-alerting if usage fluctuates
+                    Cache::put($cacheKeyCooldown, true, now()->addSeconds(self::RECOVERY_DAMPING_SECONDS));
                     $recoveriesTriggered++;
                 }
             }
@@ -232,7 +253,7 @@ class MikrotikQueueService
                 if ($wasOverloaded && $t['usage_percent'] < self::RECOVERY_THRESHOLD) {
                     $this->triggerQueueTreeRecovery($device, $t);
                     Cache::forget($cacheKeyState);
-                    Cache::forget($cacheKeyCooldown);
+                    Cache::put($cacheKeyCooldown, true, now()->addSeconds(self::RECOVERY_DAMPING_SECONDS));
                     $recoveriesTriggered++;
                 }
             }
@@ -249,7 +270,7 @@ class MikrotikQueueService
      */
     private function triggerSimpleQueueAlert(Device $device, array $q, float $threshold): void
     {
-        $timeStr = now()->format('Y-m-d H:i:s');
+        $timeStr = now()->setTimezone('Asia/Jakarta')->format('Y-m-d H:i:s') . ' WIB';
         $downIndicator = $q['is_download_overloaded'] ? '🔴' : '🟢';
         $upIndicator   = $q['is_upload_overloaded'] ? '🔴' : '🟢';
 
@@ -263,7 +284,7 @@ class MikrotikQueueService
              . "• *Upload:* {$q['upload_rate_formatted']} / {$q['upload_max_formatted']} ({$q['upload_usage_percent']}%) {$upIndicator}\n"
              . "⚠️ *Packet Drops:* " . ($q['download_dropped'] + $q['upload_dropped']) . " packet(s)\n\n"
              . "⏰ *Waktu:* {$timeStr}\n"
-             . "📌 *Status:* Bandwidth mencapai ambang batas ({$threshold}%) atau buffer penuh!";
+             . "📌 *Status:* Bandwidth mencapai ambang batas ({$threshold}%)!";
 
         $this->sendTelegramMessage($msg);
 
@@ -289,7 +310,7 @@ class MikrotikQueueService
      */
     private function triggerSimpleQueueRecovery(Device $device, array $q): void
     {
-        $timeStr = now()->format('Y-m-d H:i:s');
+        $timeStr = now()->setTimezone('Asia/Jakarta')->format('Y-m-d H:i:s') . ' WIB';
 
         $msg = "✅ *[RECOVERY] MIKROTIK QUEUE NORMAL* ✅\n\n"
              . "🖥 *Router:* {$device->name} ({$device->ip_address})\n"
@@ -300,7 +321,7 @@ class MikrotikQueueService
              . "• *Download:* {$q['download_rate_formatted']} / {$q['download_max_formatted']} ({$q['download_usage_percent']}%)\n"
              . "• *Upload:* {$q['upload_rate_formatted']} / {$q['upload_max_formatted']} ({$q['upload_usage_percent']}%)\n\n"
              . "⏰ *Waktu:* {$timeStr}\n"
-             . "✨ *Status:* Antrean telah kembali normal dan berada di bawah ambang batas.";
+             . "✨ *Status:* Antrean telah kembali normal dan stabil.";
 
         $this->sendTelegramMessage($msg);
 
@@ -324,7 +345,7 @@ class MikrotikQueueService
      */
     private function triggerQueueTreeAlert(Device $device, array $t, float $threshold): void
     {
-        $timeStr = now()->format('Y-m-d H:i:s');
+        $timeStr = now()->setTimezone('Asia/Jakarta')->format('Y-m-d H:i:s') . ' WIB';
 
         $msg = "🚨 *[ALERT] MIKROTIK QUEUE TREE OVERLOAD* 🚨\n\n"
              . "🖥 *Router:* {$device->name} ({$device->ip_address})\n"
@@ -336,7 +357,7 @@ class MikrotikQueueService
              . "• *Rate:* {$t['rate_formatted']} / {$t['max_limit_formatted']} ({$t['usage_percent']}%) 🔴\n"
              . "⚠️ *Packet Drops:* {$t['dropped']} packet(s)\n\n"
              . "⏰ *Waktu:* {$timeStr}\n"
-             . "📌 *Status:* Bandwidth melebihi ambang batas ({$threshold}%) atau antrean drop!";
+             . "📌 *Status:* Bandwidth melebihi ambang batas ({$threshold}%)!";
 
         $this->sendTelegramMessage($msg);
 
@@ -360,7 +381,7 @@ class MikrotikQueueService
      */
     private function triggerQueueTreeRecovery(Device $device, array $t): void
     {
-        $timeStr = now()->format('Y-m-d H:i:s');
+        $timeStr = now()->setTimezone('Asia/Jakarta')->format('Y-m-d H:i:s') . ' WIB';
 
         $msg = "✅ *[RECOVERY] MIKROTIK QUEUE TREE NORMAL* ✅\n\n"
              . "🖥 *Router:* {$device->name} ({$device->ip_address})\n"

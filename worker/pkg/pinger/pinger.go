@@ -89,3 +89,4 @@ func Ping(target string, count int, timeout time.Duration) Result {
 		StdDevRtt:   stdDevMs,
 	}
 }
+
