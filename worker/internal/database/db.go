@@ -57,3 +57,12 @@ func GetSetting(key string) (string, error) {
 	}
 	return "", nil
 }
+
+// SetSetting creates or updates a setting value in the settings table.
+func SetSetting(key, value string) error {
+	query := "INSERT INTO settings (`key`, value, created_at, updated_at) " +
+		"VALUES (?, ?, NOW(), NOW()) " +
+		"ON DUPLICATE KEY UPDATE value = VALUES(value), updated_at = NOW()"
+	_, err := DB.Exec(query, key, value)
+	return err
+}

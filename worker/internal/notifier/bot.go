@@ -250,12 +250,28 @@ func handleStatusCommand(token string, chatID int64) {
 
 	total := len(devices)
 
+	// Fetch Internet status from settings
+	inetStatus, _ := database.GetSetting("internet_status")
+	inetLatency, _ := database.GetSetting("internet_latency")
+	inetTarget, _ := database.GetSetting("internet_target")
+	if inetTarget == "" {
+		inetTarget = "8.8.8.8"
+	}
+
+	inetText := "⚪ _Belum diuji_"
+	if inetStatus == "up" {
+		inetText = fmt.Sprintf("✅ *ONLINE* (`%s ms` ke `%s`)", inetLatency, inetTarget)
+	} else if inetStatus == "down" {
+		inetText = "🚨 *OFFLINE* (RTO / Paket Loss 100%)"
+	}
+
 	msg := fmt.Sprintf(
 		"📈 *Ringkasan Status Jaringan*\n\n"+
-			"Total Perangkat: *%d*\n"+
+			"🌐 *Status Internet:* %s\n\n"+
+			"🖥 *Total Perangkat:* *%d*\n"+
 			"✅ UP: *%d*\n"+
 			"🚨 DOWN: *%d*",
-		total, upCount, downCount,
+		inetText, total, upCount, downCount,
 	)
 
 	SendMessage(token, fmt.Sprintf("%d", chatID), msg)
@@ -310,6 +326,16 @@ func handleCallbackQuery(token string, chatID int64, data string) {
 			"Contoh: `8.8.8.8` atau `192.168.1.1` atau `google.com`\n\n" +
 			"_Ketik /cancel untuk membatalkan._"
 		SendMessage(token, fmt.Sprintf("%d", chatID), msg)
+		return
+	}
+
+	if data == "ping_inet_google" {
+		go executeAndSendPing(token, chatID, "8.8.8.8", "Internet (Google DNS 8.8.8.8)")
+		return
+	}
+
+	if data == "ping_inet_cloudflare" {
+		go executeAndSendPing(token, chatID, "1.1.1.1", "Internet (Cloudflare DNS 1.1.1.1)")
 		return
 	}
 
@@ -413,6 +439,20 @@ func handlePingMenuCommand(token string, chatID int64) {
 
 	var inlineKeyboard [][]map[string]string
 
+	// Direct Internet Ping buttons
+	inlineKeyboard = append(inlineKeyboard, []map[string]string{
+		{
+			"text":          "🌐 Ping Internet Google (8.8.8.8)",
+			"callback_data": "ping_inet_google",
+		},
+	})
+	inlineKeyboard = append(inlineKeyboard, []map[string]string{
+		{
+			"text":          "🌐 Ping Internet Cloudflare (1.1.1.1)",
+			"callback_data": "ping_inet_cloudflare",
+		},
+	})
+
 	// List active devices that have IP address
 	for _, d := range devices {
 		if d.IPAddress == "" {
@@ -455,6 +495,11 @@ func executeAndSendPing(token string, chatID int64, target string, deviceName st
 	if target == "" {
 		SendMessage(token, fmt.Sprintf("%d", chatID), "❌ Alamat IP atau hostname tidak boleh kosong.")
 		return
+	}
+
+	if strings.ToLower(target) == "internet" {
+		target = "8.8.8.8"
+		deviceName = "Internet (Google DNS 8.8.8.8)"
 	}
 
 	displayName := fmt.Sprintf("`%s`", target)

@@ -9,6 +9,7 @@ import (
 
 	"github.com/Caw-reN/NeMeSis/worker/internal/config"
 	"github.com/Caw-reN/NeMeSis/worker/internal/database"
+	"github.com/Caw-reN/NeMeSis/worker/internal/internet"
 	"github.com/Caw-reN/NeMeSis/worker/internal/notifier"
 	"github.com/Caw-reN/NeMeSis/worker/internal/scanner"
 	"github.com/Caw-reN/NeMeSis/worker/internal/snmp"
@@ -96,6 +97,9 @@ func main() {
 func runScanCycle(cfg *config.Config) {
 	logger.Info("--- Scan cycle started ---")
 	cycleStart := time.Now()
+
+	// Step 0: Check Internet / WAN Uplink Connectivity
+	go internet.CheckInternet()
 
 	// Step 1: Get devices to scan
 	devices, err := database.GetActiveDevices()

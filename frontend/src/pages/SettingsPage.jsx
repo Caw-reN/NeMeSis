@@ -21,6 +21,7 @@ export default function SettingsPage() {
   const [telegramToken, setTelegramToken] = useState('')
   const [telegramChatId, setTelegramChatId] = useState('')
   const [queueThreshold, setQueueThreshold] = useState('90')
+  const [internetTargets, setInternetTargets] = useState('8.8.8.8, 1.1.1.1')
   const [isSavingTelegram, setIsSavingTelegram] = useState(false)
 
   useEffect(() => {
@@ -34,6 +35,7 @@ export default function SettingsPage() {
       setTelegramToken(res.data.telegram_bot_token || '')
       setTelegramChatId(res.data.telegram_chat_id || '')
       setQueueThreshold(res.data.mikrotik_queue_threshold_percent || '90')
+      setInternetTargets(res.data.internet_ping_targets || '8.8.8.8, 1.1.1.1')
     } catch (err) {
       toast.error('Gagal mengambil pengaturan.')
     }
@@ -46,7 +48,8 @@ export default function SettingsPage() {
       await api.post('/api/settings', {
         telegram_bot_token: telegramToken,
         telegram_chat_id: telegramChatId,
-        mikrotik_queue_threshold_percent: queueThreshold
+        mikrotik_queue_threshold_percent: queueThreshold,
+        internet_ping_targets: internetTargets,
       })
       toast.success('Pengaturan berhasil disimpan')
     } catch (err) {
@@ -247,6 +250,19 @@ export default function SettingsPage() {
             </div>
             <p className="text-xs text-slate-500 mt-1">
               Pemicu alert otomatis ke Telegram jika trafik antrean MikroTik $\ge$ persentase ini dari Max Limit (default: 90%).
+            </p>
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-slate-700 mb-1">Target Ping Internet / WAN</label>
+            <input
+              type="text"
+              className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 text-sm outline-none focus:border-indigo-500 transition font-mono"
+              placeholder="8.8.8.8, 1.1.1.1"
+              value={internetTargets}
+              onChange={e => setInternetTargets(e.target.value)}
+            />
+            <p className="text-xs text-slate-500 mt-1">
+              IP publik untuk pengujian berkala koneksi internet server (pisahkan dengan koma, default: 8.8.8.8, 1.1.1.1).
             </p>
           </div>
           <button

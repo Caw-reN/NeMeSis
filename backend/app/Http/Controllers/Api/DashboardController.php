@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Api;
 use App\Http\Controllers\Controller;
 use App\Models\Device;
 use App\Models\DeviceLog;
+use App\Models\Setting;
 use Illuminate\Http\JsonResponse;
 
 class DashboardController extends Controller
@@ -62,6 +63,14 @@ class DashboardController extends Controller
                 ];
             });
 
+        $internet = [
+            'status'      => Setting::where('key', 'internet_status')->value('value') ?? 'unknown',
+            'latency_ms'  => (float)(Setting::where('key', 'internet_latency')->value('value') ?? 0),
+            'packet_loss' => (float)(Setting::where('key', 'internet_packet_loss')->value('value') ?? 0),
+            'target'      => Setting::where('key', 'internet_target')->value('value') ?? '8.8.8.8',
+            'checked_at'  => Setting::where('key', 'internet_checked_at')->value('value'),
+        ];
+
         return response()->json([
             'summary' => [
                 'total_devices'   => $totalDevices,
@@ -73,8 +82,10 @@ class DashboardController extends Controller
                     ? round(($upDevices / $scannableDevices) * 100, 1)
                     : 0,
                 'last_scan_at'    => $lastScanAt,
+                'internet'        => $internet,
             ],
-            'recent_alerts' => $recentAlerts,
+            'internet'        => $internet,
+            'recent_alerts'   => $recentAlerts,
             'devices_by_type' => $devicesByType,
         ]);
     }

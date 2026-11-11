@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { motion }  from 'framer-motion'
-import { Monitor, CheckCircle2, XCircle, HelpCircle, TrendingUp, AlertTriangle, Clock, Server } from 'lucide-react'
+import { Monitor, CheckCircle2, XCircle, HelpCircle, TrendingUp, AlertTriangle, Clock, Server, Globe } from 'lucide-react'
 import StatCard    from '../components/ui/StatCard'
 import { dashboardService } from '../services/dashboard.service'
 import { timeAgo }  from '../utils/helpers'
@@ -34,9 +34,24 @@ export default function DashboardPage() {
       transition={{ duration: 0.22 }}
       className="space-y-6"
     >
+      {/* Internet Down Alert Banner */}
+      {s?.internet?.status === 'down' && (
+        <div className="bg-rose-50 border border-rose-300 rounded-2xl p-4 flex items-center gap-3 shadow-sm">
+          <div className="p-2.5 bg-rose-100 rounded-xl text-rose-600 shrink-0">
+            <AlertTriangle size={22} />
+          </div>
+          <div className="min-w-0 flex-1">
+            <h3 className="text-sm font-bold text-rose-900">Peringatan: Koneksi Internet / Uplink Terputus!</h3>
+            <p className="text-xs text-rose-700 mt-0.5">
+              Server NMS mendeteksi 100% packet loss ke target publik ({s.internet.target || '8.8.8.8'}). Periksa uplink ISP atau modem gateway Anda.
+            </p>
+          </div>
+        </div>
+      )}
+
       {/* KPI Cards */}
       <section>
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-4">
           <StatCard
             index={0}
             label="Total Devices"
@@ -74,6 +89,40 @@ export default function DashboardPage() {
             accent="bg-amber-50"
             iconColor="text-amber-500"
             sub={s?.unknown_devices ? `${s.unknown_devices} unknown` : undefined}
+            loading={loading}
+          />
+          <StatCard
+            index={4}
+            label="Internet / WAN"
+            value={
+              s?.internet?.status === 'up'
+                ? 'ONLINE'
+                : s?.internet?.status === 'down'
+                ? 'OFFLINE'
+                : 'CHECKING'
+            }
+            icon={<Globe size={22} />}
+            accent={
+              s?.internet?.status === 'up'
+                ? 'bg-sky-50'
+                : s?.internet?.status === 'down'
+                ? 'bg-rose-50'
+                : 'bg-slate-50'
+            }
+            iconColor={
+              s?.internet?.status === 'up'
+                ? 'text-sky-500'
+                : s?.internet?.status === 'down'
+                ? 'text-rose-500'
+                : 'text-slate-400'
+            }
+            sub={
+              s?.internet?.status === 'up'
+                ? `${s.internet.latency_ms} ms (${s.internet.target})`
+                : s?.internet?.status === 'down'
+                ? '100% loss / RTO'
+                : 'Menunggu scan'
+            }
             loading={loading}
           />
         </div>
